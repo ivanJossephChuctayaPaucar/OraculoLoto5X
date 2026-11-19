@@ -55,6 +55,22 @@ fun SemaphoreCard(
             .padding(16.dp)
     ) {
         Column {
+            // Cabecera de contexto
+            Text(
+                text = "PASO 1 · SEMÁFORO DEL DÍA",
+                color = TextSecondary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            Text(
+                text = "¿Conviene apostar hoy? La app analiza tu número del día con la Numerología Caldea de Cheiro y el ciclo lunar para decirte si la energía es favorable.",
+                color = TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
+            )
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -74,7 +90,7 @@ fun SemaphoreCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Día Personal Activo: #${assessment.personalDay}",
+                        text = "Día Personal #${assessment.personalDay} · Cheiro + Ciclo Lunar",
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -101,7 +117,7 @@ fun SemaphoreCard(
             ) {
                 Row(verticalAlignment = Alignment.Top) {
                     Text(
-                        text = "Consejo: ",
+                        text = "💡 Qué hacer hoy: ",
                         color = primaryColor,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold

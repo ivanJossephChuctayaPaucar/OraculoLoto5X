@@ -31,10 +31,12 @@ object GeminiOracleAdvisor {
     // Default API Key encoded in Base64 to prevent VCS Push Protection blocks
     private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SjBla0RZNTR4Y3RRRW9YUDBac1NVcHZsTTNST04zMVIwTmg5dzVpMzdaU3c="
 
-    // Models supported by Google AI Studio (gemini-2.5-flash principal, gemini-2.5-pro respaldo)
+    // Models supported by Google AI Studio
+    // gemini-2.5-flash → principal; gemini-1.5-flash → siempre disponible como respaldo estable
     const val MODEL_FLASH = "gemini-2.5-flash"
     const val MODEL_PRO = "gemini-2.5-pro"
-    val FALLBACK_MODELS = listOf(MODEL_FLASH, MODEL_PRO)
+    const val MODEL_STABLE = "gemini-1.5-flash"
+    val FALLBACK_MODELS = listOf(MODEL_FLASH, MODEL_STABLE, MODEL_PRO)
 
     private const val ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -121,7 +123,9 @@ REGLAS ABSOLUTAS:
                     return@withContext Result.failure(Exception(msg))
                 }
             } catch (e: UnknownHostException) {
-                return@withContext Result.failure(Exception("Sin conexión a internet"))
+                return@withContext Result.failure(Exception("Sin conexión a internet. Activa datos móviles o Wi-Fi e inténtalo nuevamente."))
+            } catch (e: java.net.SocketTimeoutException) {
+                return@withContext Result.failure(Exception("Tiempo de espera agotado. El servidor tardó demasiado. Inténtalo en unos segundos."))
             } catch (e: Exception) {
                 return@withContext Result.failure(e)
             }
@@ -214,6 +218,8 @@ REGLAS ABSOLUTAS:
                     return@withContext GeminiResult.Success(text)
                 } else if (code == 404) {
                     continue
+                } else if (code == 429) {
+                    return@withContext GeminiResult.Error("Límite de cuota alcanzado (429). Espera 1 minuto y vuelve a intentarlo.")
                 } else {
                     val msg = try {
                         JSONObject(response).getJSONObject("error").getString("message")
@@ -222,6 +228,8 @@ REGLAS ABSOLUTAS:
                 }
             } catch (e: UnknownHostException) {
                 return@withContext GeminiResult.Offline
+            } catch (e: java.net.SocketTimeoutException) {
+                return@withContext GeminiResult.Error("Tiempo de espera agotado. Inténtalo de nuevo.")
             } catch (e: Exception) {
                 val msg = e.message ?: ""
                 if (msg.contains("Unable to resolve host", ignoreCase = true) ||
@@ -233,7 +241,7 @@ REGLAS ABSOLUTAS:
             }
         }
 
-        return@withContext GeminiResult.Error("No se pudo conectar con el modelo de Gemini")
+        return@withContext GeminiResult.Error("Todos los modelos Gemini devolvieron 404. Verifica que tu API key esté activa en aistudio.google.com")
     }
 
     private fun getPrefs(context: Context): SharedPreferences =

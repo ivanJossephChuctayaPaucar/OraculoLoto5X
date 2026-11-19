@@ -96,47 +96,62 @@ fun TodayOracleScreen(
         // Sincronía Lunar Natal con Iluminación Porcentual Real
         oracleResult?.let { res ->
             val isResonance = res.moonInfo.isExactNatalResonance
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isResonance) Color(0xFF142B28) else Color(0xFF141C2E))
-                    .border(
-                        1.dp,
-                        if (isResonance) EmeraldAccent else GoldPrimary.copy(alpha = 0.4f),
-                        RoundedCornerShape(10.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Text(text = "☽", fontSize = 16.sp, color = if (isResonance) EmeraldLight else GoldLight)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isResonance) "¡RESONANCIA LUNAR NATAL EXACTA (50%)!" else "CICLO LUNAR OFFLINE:",
-                        color = if (isResonance) EmeraldLight else GoldLight,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = res.moonInfo.displaySummary,
-                        color = if (isResonance) EmeraldLight else TextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Box(
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "SINCRONÍA LUNAR · Westcott & Cheiro",
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "La Luna influye en tu suerte según tu carta natal. Tu luna natal fue un Cuarto Creciente (50%). Cuando la luna hoy coincide con ese porcentaje, tu bonificación de azar se duplica.",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (isResonance) EmeraldDark else Color(0xFF263345))
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isResonance) Color(0xFF142B28) else Color(0xFF141C2E))
+                        .border(
+                            1.dp,
+                            if (isResonance) EmeraldAccent else GoldPrimary.copy(alpha = 0.4f),
+                            RoundedCornerShape(10.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = "Casa 5: 5 y 6",
-                        color = if (isResonance) EmeraldLight else GoldPrimary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text = "☽", fontSize = 16.sp, color = if (isResonance) EmeraldLight else GoldLight)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isResonance) "¡RESONANCIA LUNAR NATAL EXACTA (50%)!" else "CICLO LUNAR OFFLINE:",
+                            color = if (isResonance) EmeraldLight else GoldLight,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = res.moonInfo.displaySummary,
+                            color = if (isResonance) EmeraldLight else TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isResonance) EmeraldDark else Color(0xFF263345))
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "Casa 5: 5 y 6",
+                            color = if (isResonance) EmeraldLight else GoldPrimary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -154,6 +169,23 @@ fun TodayOracleScreen(
                 RiskLevel.VERDE -> EmeraldAccent
                 RiskLevel.AMARILLO -> GoldPrimary
                 RiskLevel.ROJO -> SemaphoreRed
+            }
+
+            // Título descriptivo antes de la jugada
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = "PASO 2 · TU JUGADA MAESTRA",
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "El motor calculó 10,000 combinaciones con Monte Carlo y filtros de los 5 tratados. Estas son tus mejores bolillas para hoy. Toca cada una para ver por qué fue elegida.",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
             }
 
             Box(
@@ -226,6 +258,12 @@ fun TodayOracleScreen(
                     val odds = res.masterPlay.size - evens
                     val decades = res.masterPlay.map { it / 10 }.distinct().size
 
+                    Text(
+                        text = "Filtros de equilibrio estadístico (Campana de Gauss):",
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -234,9 +272,18 @@ fun TodayOracleScreen(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Suma: $sum", color = TextPrimary, fontSize = 11.sp)
-                        Text(text = "Par/Imp: $evens-$odds", color = TextPrimary, fontSize = 11.sp)
-                        Text(text = "Decenas: $decades distintas", color = TextPrimary, fontSize = 11.sp)
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text(text = "$sum", color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Suma total", color = TextSecondary, fontSize = 10.sp)
+                        }
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text(text = "$evens–$odds", color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Pares–Impares", color = TextSecondary, fontSize = 10.sp)
+                        }
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text(text = "$decades", color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Decenas distintas", color = TextSecondary, fontSize = 10.sp)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -296,25 +343,33 @@ fun TodayOracleScreen(
         ) {
             Column {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showAdvancedTools = !showAdvancedTools }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showAdvancedTools = !showAdvancedTools }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Default.Tune, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Tune, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(20.dp))
+                    Column {
                         Text(
-                            text = "HERRAMIENTAS AVANZADAS (Rueda 9 y Gematría)",
+                            text = "HERRAMIENTAS AVANZADAS",
                             color = GoldLight,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
+                        Text(
+                            text = "Rueda de 9 bolillas alternativas y Gematría Caldea de tu intención",
+                            color = TextSecondary,
+                            fontSize = 10.sp,
+                            lineHeight = 13.sp
+                        )
                     }
+                }
                     Icon(
                         imageVector = if (showAdvancedTools) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = null,
@@ -341,7 +396,13 @@ fun TodayOracleScreen(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Escribe una palabra (ej. ABUNDANCIA) y el sistema la convierte a un número caldeo que fija una bolilla ancla en tu jugada.",
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                lineHeight = 14.sp,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
                             OutlinedTextField(
                                 value = intentionWord,
                                 onValueChange = { viewModel.setIntentionWord(it) },
@@ -378,6 +439,13 @@ fun TodayOracleScreen(
                                     color = EmeraldLight,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Las 9 bolillas con mayor puntaje numerológico hoy. Puedes combinarlas manualmente si prefieres apostar más de una jugada.",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                    lineHeight = 14.sp,
+                                    modifier = Modifier.padding(bottom = 4.dp)
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 val chunked = res.reducedWheel9.chunked(5)
@@ -419,6 +487,20 @@ fun TodayOracleScreen(
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Encabezado con contexto descriptivo
+                Text(
+                    text = "PASO 3 · ORÁCULO HERMÉTICO GEMINI (OPCIONAL)",
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "Necesitas internet para este paso. La IA recibe tus bolillas ya calculadas y las interpreta según tus 5 libros y tu carta natal. No genera números; solo explica los que el motor calculó.",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
