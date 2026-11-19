@@ -87,6 +87,14 @@ fun PlanetaryCountdownCard(
                 }
             }
 
+            Text(
+                text = "Según Westcott y Cheiro, las horas regidas por el Sol o la Luna son tus momentos de mayor vibración positiva para sellar o registrar tu jugada antes de que cierren las ventas.",
+                color = TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
             // Fila central: Hora activa actual
