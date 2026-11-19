@@ -229,7 +229,76 @@ fun FiveBooksAnalysisScreen(
             }
         }
 
-        // 2. Cuadrícula 3x3 Interactiva de David A. Phillips
+        // 2. Tarjeta Casa 5 Agathe Tuche (Westcott p.63) - Clickable para abrir pág. 63
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF142436), DarkSurface)
+                    )
+                )
+                .border(1.dp, EmeraldAccent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                .clickable { activePdfCitation = BookCitationRegistry.WESTCOTT_CASA_5_AGATHE_TUCHE }
+                .padding(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(EmeraldDark)
+                        .border(1.dp, EmeraldAccent, RoundedCornerShape(10.dp))
+                ) {
+                    Text(
+                        text = "5 y 6",
+                        color = EmeraldLight,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Casa 5: Agathe Tuche (Westcott)",
+                            color = EmeraldLight,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "📖 Pág. 63",
+                            color = GoldLight,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = "Agathe Tuche (\"Buena Fortuna\"): rige esquemas de azar y riqueza especulativa. Regentes Mercurio (5) y Venus (6) derivados de tu Hora Sideral 22h 01m y latitud de Sicuani.",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                    Text(
+                        text = "Toca para abrir la página 63 del tratado de Westcott en PDF",
+                        color = EmeraldAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // 3. Cuadrícula 3x3 Interactiva de David A. Phillips
         InteractivePhillipsGridCard(
             birthDate = userProfile.birthDate,
             onOpenCitation = { activePdfCitation = it }

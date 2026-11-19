@@ -2,6 +2,7 @@ package com.oraculoloto5x.app.engine
 
 import com.oraculoloto5x.app.data.knowledge.NumerologyKnowledgeBase
 import com.oraculoloto5x.app.data.models.LotteryType
+import com.oraculoloto5x.app.data.models.NatalAstronomicalProfile
 import com.oraculoloto5x.app.data.models.NumberAnalysis
 import com.oraculoloto5x.app.data.models.UserProfile
 import java.time.LocalDate
@@ -12,7 +13,9 @@ data class DailyRiskAssessment(
     val title: String,
     val explanation: String,
     val actionableAdvice: String,
-    val personalDay: Int
+    val personalDay: Int,
+    val moonPhaseBonusTitle: String = "",
+    val moonBonusMultiplier: Double = 0.0
 )
 
 enum class RiskLevel {
@@ -27,24 +30,26 @@ data class OracleGenerationResult(
     val riskAssessment: DailyRiskAssessment,
     val allBallsAnalysis: List<NumberAnalysis>,
     val targetDrawDate: LocalDate,
-    val lotteryType: LotteryType
+    val lotteryType: LotteryType,
+    val moonPhaseSync: String = "",
+    val house5RulersDescription: String = "Casa 5 (Agathe Tuche): Mercurio (5) y Venus (6)"
 )
 
 class LotteryFusionEngine(
     private val userProfile: UserProfile,
-    private val historicalFrequencies: Map<Int, Int> = emptyMap()
+    private val historicalFrequencies: Map<Int, Int> = emptyMap(),
+    private val natalAstro: NatalAstronomicalProfile = NatalAstronomicalProfile.DEFAULT
 ) {
 
     /**
      * Evalúa el Semáforo de Riesgo según el Sistema Caldeo de Cheiro
-     * para el día del sorteo frente al perfil natal de Iván (nacido el 19 -> serie 1-4).
+     * y los ciclos lunares de Westcott (resonancia con Cuarto Creciente natal al 50%).
      */
     fun assessDailyRisk(targetDate: LocalDate): DailyRiskAssessment {
         val dayOfMonth = targetDate.dayOfMonth
         val reducedDay = NumerologyKnowledgeBase.reduceToSingleDigit(dayOfMonth)
 
         // Día personal: Mes personal + Día del mes
-        // Año personal para 2026 = 1 (19/07 -> 1+7 = 8 + 2026(10->1) = 9)
         val currentYear = targetDate.year
         val yearReduced = NumerologyKnowledgeBase.reduceToSingleDigit(currentYear)
         val birthDayRed = userProfile.primarySingleNumber // 1
@@ -53,40 +58,56 @@ class LotteryFusionEngine(
         val personalMonth = NumerologyKnowledgeBase.reduceToSingleDigit(personalYear + targetDate.monthValue)
         val personalDay = NumerologyKnowledgeBase.reduceToSingleDigit(personalMonth + targetDate.dayOfMonth)
 
-        return when (reducedDay) {
+        val (moonTitle, moonBonus) = NatalAstronomicalProfile.getMoonSyncBonus(targetDate.toEpochDay())
+
+        val baseAssessment = when (reducedDay) {
             1, 2, 4, 7 -> DailyRiskAssessment(
                 riskLevel = RiskLevel.VERDE,
                 title = "SEMÁFORO VERDE: Alta Afinidad Solar y Lunar",
-                explanation = "El día vibra en la serie armónica (${reducedDay}). Según Cheiro, los nacidos el día 19 (serie 1-4) gozan de magnetismo y simpatía universal con los números 1, 2, 4 y 7.",
+                explanation = "El día vibra en la serie armónica (${reducedDay}). Según Cheiro, los nacidos el día 19 (serie 1-4) gozan de simpatía universal con los números 1, 2, 4 y 7. ☽ $moonTitle.",
                 actionableAdvice = "Día ideal para consolidar la Jugada Maestra. Las probabilidades energéticas favorecen la sincronía numérica.",
-                personalDay = personalDay
+                personalDay = personalDay,
+                moonPhaseBonusTitle = moonTitle,
+                moonBonusMultiplier = moonBonus
             )
-            3, 5, 6 -> DailyRiskAssessment(
-                riskLevel = RiskLevel.AMARILLO,
-                title = "SEMÁFORO AMARILLO: Vibración Moderada / Neutra",
-                explanation = "El día vibra con Júpiter (3), Mercurio (5) o Venus (6). Es un flujo compatible pero secundario frente a tu serie natal.",
-                actionableAdvice = "Se aconseja jugar con moderación o apoyar la jugada con la Rueda Reducida de 9 bolillas para ampliar cobertura.",
-                personalDay = personalDay
-            )
+            3, 5, 6 -> {
+                val elevatedLevel = if (moonBonus >= 2.0) RiskLevel.VERDE else RiskLevel.AMARILLO
+                DailyRiskAssessment(
+                    riskLevel = elevatedLevel,
+                    title = if (elevatedLevel == RiskLevel.VERDE) "SEMÁFORO VERDE: Impulso de Resonancia Lunar Natal" else "SEMÁFORO AMARILLO: Vibración Moderada / Neutra",
+                    explanation = "El día vibra con Júpiter (3), Mercurio (5) o Venus (6). Los regentes 5 y 6 activan tu Casa 5 (Agathe Tuche de Westcott). ☽ $moonTitle.",
+                    actionableAdvice = if (elevatedLevel == RiskLevel.VERDE) "La coincidencia con tu fase lunar natal potencia los regentes de azar." else "Se aconseja jugar con moderación apoyado en la Rueda Reducida de 9 bolillas.",
+                    personalDay = personalDay,
+                    moonPhaseBonusTitle = moonTitle,
+                    moonBonusMultiplier = moonBonus
+                )
+            }
             8, 9 -> DailyRiskAssessment(
                 riskLevel = RiskLevel.ROJO,
                 title = "SEMÁFORO ROJO: Tensión Kármica (Saturno / Marte)",
-                explanation = "Cheiro enfatiza rigurosamente que los nacidos bajo la serie 1-4 deben evitar o ser extremadamente cautelosos en días regidos por 8 (Saturno) o 9 (Marte) debido a choques de fuerza y demoras.",
-                actionableAdvice = "Alerta de cautela: Si juegas hoy, hazlo en las Horas Planetarias benévolas del Sol o la Luna para amortiguar la disonancia del día.",
-                personalDay = personalDay
+                explanation = "Cheiro enfatiza rigurosamente cautela en días regidos por 8 o 9 para la serie 1-4. ☽ $moonTitle.",
+                actionableAdvice = "Si juegas hoy, hazlo en las Horas Planetarias benévolas del Sol o la Luna para amortiguar la disonancia del día.",
+                personalDay = personalDay,
+                moonPhaseBonusTitle = moonTitle,
+                moonBonusMultiplier = moonBonus
             )
             else -> DailyRiskAssessment(
                 riskLevel = RiskLevel.AMARILLO,
                 title = "SEMÁFORO AMARILLO: Día Neutro",
-                explanation = "Vibración armónica general.",
+                explanation = "Vibración armónica general. ☽ $moonTitle.",
                 actionableAdvice = "Mantén la concentración en tus números clave.",
-                personalDay = personalDay
+                personalDay = personalDay,
+                moonPhaseBonusTitle = moonTitle,
+                moonBonusMultiplier = moonBonus
             )
         }
+
+        return baseAssessment
     }
 
     /**
-     * Motor Híbrido: 10,000 Simulaciones Monte Carlo + Filtro Campana de Gauss + 5 Tratados
+     * Motor Híbrido Astro-Numerológico:
+     * 10,000 Simulaciones Monte Carlo + Campana de Gauss + 5 Tratados + Casa 5 Agathe Tuche + Sincronía Lunar
      */
     fun generateOraclePlay(
         lotteryType: LotteryType,
@@ -105,41 +126,55 @@ class LotteryFusionEngine(
             if (intentionSum in 1..maxBall) intentionSum else ((intentionSum - 1) % maxBall) + 1
         } else null
 
-        // 2. Analizar y puntuar cada bolilla de 1 a maxBall
+        // 2. Cálculo de fase lunar actual (sin internet)
+        val (moonTitle, moonBonus) = NatalAstronomicalProfile.getMoonSyncBonus(targetDate.toEpochDay())
+
+        // 3. Analizar y puntuar cada bolilla de 1 a maxBall incorporando la carta astro-numerológica
         val ballAnalyses = (1..maxBall).map { b ->
             val histCount = historicalFrequencies[b] ?: 0
             var analysis = NumerologyKnowledgeBase.analyzeBall(b, userProfile, histCount)
+
+            // A) Bonificador directo Casa 5 Agathe Tuche (Westcott p.63): Regentes Mercurio (5) y Venus (6)
+            val root = NumerologyKnowledgeBase.reduceToSingleDigit(b)
+            if (b in natalAstro.house5AgatheTucheRulers || root in natalAstro.house5AgatheTucheRulers) {
+                val house5Bonus = 22.0 * (1.0 + moonBonus * 0.25)
+                analysis = analysis.copy(compositeScore = analysis.compositeScore + house5Bonus)
+            }
+
+            // B) Bonificador geográfico natal Sicuani = 20 -> 2 (Cheiro Cap. XXIX)
+            if (b == natalAstro.chaldeanPlaceNumber || root == 2) {
+                analysis = analysis.copy(compositeScore = analysis.compositeScore + 15.0)
+            }
+
+            // C) Bono especial por anclaje de intención (+40 puntos)
             if (b == anchorBall) {
-                // Bono especial por anclaje de intención (+40 puntos)
                 analysis = analysis.copy(compositeScore = analysis.compositeScore + 40.0)
             }
+
             analysis
         }
 
         val ballScoreMap = ballAnalyses.associate { it.ballNumber to it.compositeScore }
 
-        // 3. Rueda Reducida (Top 9 bolillas de mayor puntaje individual)
+        // 4. Rueda Reducida (Top 9 bolillas de mayor puntaje individual)
         val reducedWheel9 = ballAnalyses
             .sortedByDescending { it.compositeScore }
             .take(9)
             .map { it.ballNumber }
             .sorted()
 
-        // 4. Monte Carlo (10,000 iteraciones con Campana de Gauss)
+        // 5. Monte Carlo (10,000 iteraciones con Campana de Gauss)
         val candidateBalls = (1..maxBall).toList()
         var bestPlay = reducedWheel9.take(totalToPick).sorted()
         var bestPlayScore = Double.NEGATIVE_INFINITY
 
         val random = Random(System.currentTimeMillis())
 
-        // Pesos para muestreo
         val minScore = ballAnalyses.minOf { it.compositeScore }
         val adjustedWeights = ballAnalyses.associate {
             it.ballNumber to (it.compositeScore - minScore + 5.0)
         }
-        val totalWeight = adjustedWeights.values.sum()
 
-        // Función para elegir una bolilla ponderada
         fun pickWeightedBall(available: Set<Int>): Int {
             val subTotalWeight = available.sumOf { adjustedWeights[it] ?: 1.0 }
             var r = random.nextDouble() * subTotalWeight
@@ -155,7 +190,6 @@ class LotteryFusionEngine(
         for (i in 0 until iterations) {
             val picked = mutableSetOf<Int>()
 
-            // Si hay bolilla comodín de intención, incluirla en 50% de las simulaciones
             if (anchorBall != null && random.nextBoolean()) {
                 picked.add(anchorBall)
             }
@@ -174,33 +208,28 @@ class LotteryFusionEngine(
             val playList = picked.toList()
 
             // --- FILTROS DE CAMPANA DE GAUSS ---
-            // 1. Suma Gaussiana
             val sum = playList.sum()
             if (sum !in lotteryType.minGaussianSum..lotteryType.maxGaussianSum) continue
 
-            // 2. Balance Par / Impar
             val evens = playList.count { it % 2 == 0 }
-            val odds = totalToPick - evens
             val isBalancedParity = if (totalToPick == 6) {
-                evens in 2..4 // 2-4, 3-3, 4-2
+                evens in 2..4
             } else {
-                evens in 2..3 // 2-3 o 3-2 para 5 bolillas
+                evens in 2..3
             }
             if (!isBalancedParity) continue
 
-            // 3. Distribución de decenas
             val decadesCount = playList.map { it / 10 }.distinct().size
             if (decadesCount < lotteryType.minDistinctDecades) continue
 
-            // 4. Calcular Aptitud Compuesta de la combinación
             var comboScore = playList.sumOf { ballScoreMap[it] ?: 0.0 }
 
             // Bonificaciones combinatorias
-            // Presencia de al menos 1 número maestro o afortunado
             if (playList.any { it in NumerologyKnowledgeBase.FORTUNATE_COMPOUNDS }) comboScore += 20.0
-            // Presencia de al menos 1 número de la serie 1-4
             if (playList.any { NumerologyKnowledgeBase.reduceToSingleDigit(it) in listOf(1, 4) }) comboScore += 15.0
-            // Penalización si contiene más de un número de advertencia
+            // Bonificación combinatoria Casa 5 Agathe Tuche (presencia de 5 y 6)
+            if (playList.any { it in setOf(5, 6, 23, 14, 32, 41, 15, 24, 33, 42) }) comboScore += 18.0
+
             val warningCount = playList.count { it in NumerologyKnowledgeBase.WARNING_COMPOUNDS }
             if (warningCount > 1) comboScore -= 40.0
 
@@ -220,7 +249,9 @@ class LotteryFusionEngine(
             riskAssessment = riskAssessment,
             allBallsAnalysis = ballAnalyses.sortedByDescending { it.compositeScore },
             targetDrawDate = targetDate,
-            lotteryType = lotteryType
+            lotteryType = lotteryType,
+            moonPhaseSync = moonTitle,
+            house5RulersDescription = "Casa 5 Agathe Tuche: Mercurio (5) y Venus (6)"
         )
     }
 }

@@ -174,6 +174,12 @@ object BookCitationRegistry {
         chapterLabel = "El Número 19 — El Sol", pdfPageIndex = 115,
         literalQuote = "El 19 representa el pleno poder del Sol. Es símbolo de éxito, honor y gloria merecidos. Las tradiciones antiguas lo llaman 'La Estrella del Sol'."
     )
+    val WESTCOTT_CASA_5_AGATHE_TUCHE = BookCitation(
+        bookId = "WESTCOTT", expectedFileName = "numberstheiroccu1911west.pdf",
+        bookTitle = "Numbers: Their Occult Power and Mystic Virtues", author = "W. W. Westcott",
+        chapterLabel = "Casa 5: Agathe Tuche (Buena Fortuna) — Pág. 63", pdfPageIndex = 63,
+        literalQuote = "La Casa 5 recibe el título de Agathe Tuche (Buena Fortuna) y gobierna el éxito en esquemas azarosos de fortuna o placer, y la riqueza generada por la especulación armónica. Con Ascendente Tauro por Hora Sideral 22h01m en Sicuani, los regentes son Mercurio (5) y Venus (6)."
+    )
 
     // ── MCCANTS ──────────────────────────────────────────────────────────────
     val MCCANTS_NATURAL_MATCH = BookCitation(
@@ -198,7 +204,7 @@ object BookCitationRegistry {
         CHEIRO_COMPUESTOS_15_18, CHEIRO_COMPUESTOS_19_23, CHEIRO_COMPUESTOS_24_30,
         CHEIRO_COMPUESTOS_31_43, CHEIRO_COMPUESTOS_44_52, CHEIRO_APUESTAS,
         WESTCOTT_PRIMOS_PERFECTOS, WESTCOTT_CUADRADOS_MAGICOS,
-        WESTCOTT_HORAS_PLANETARIAS, WESTCOTT_NUMERO_19,
+        WESTCOTT_HORAS_PLANETARIAS, WESTCOTT_NUMERO_19, WESTCOTT_CASA_5_AGATHE_TUCHE,
         MCCANTS_NATURAL_MATCH, MCCANTS_LUCKY_LOTTO
     )
 
@@ -215,8 +221,10 @@ object BookCitationRegistry {
         }
         if (ball == 19) result += WESTCOTT_NUMERO_19
         if (ball == 6 || ball == 28) result += WESTCOTT_PRIMOS_PERFECTOS
+        if (ball == 5 || ball == 6) result += WESTCOTT_CASA_5_AGATHE_TUCHE
 
         val root = digitRoot(ball)
+        if (root == 5 || root == 6) result += WESTCOTT_CASA_5_AGATHE_TUCHE
         if (ball == 19 || root == 1) result += MILLMAN_19_10
         if (root == 8) result += MILLMAN_ABUNDANCIA_8
         if (root == 3 || root == 7) result += MILLMAN_SENDERO_37_10

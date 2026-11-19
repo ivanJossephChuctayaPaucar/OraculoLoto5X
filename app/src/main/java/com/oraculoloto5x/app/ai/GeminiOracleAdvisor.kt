@@ -159,6 +159,10 @@ REGLAS ABSOLUTAS:
             put("hora_planetaria_cusco", currentPlanetaryHour)
             put("proxima_ventana_favorable", nextFavorableWindow)
             put("jugada_maestra", masterPlayBalls.joinToString("-"))
+            put("lugar_natal", "Sicuani (-14.2667, -71.2333, Caldeo SICUANI = 20 -> 2)")
+            put("hora_sideral_natal", "22h 01m -> Ascendente Tauro / Casa 5 Agathe Tuche (Regentes 5 y 6)")
+            put("luna_natal", "Cuarto Creciente (50% iluminada)")
+            put("hora_natal", "02:00 AM (Cúspide Cáncer-Leo, 26° Cáncer)")
             if (!userQuestion.isNullOrBlank()) {
                 put("pregunta_puntual_usuario", userQuestion.trim())
             }
