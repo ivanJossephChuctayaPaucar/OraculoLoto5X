@@ -11,8 +11,8 @@ android {
         applicationId = "com.oraculoloto5x.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "2.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -20,9 +20,22 @@ android {
         }
     }
 
+    signingConfigs {
+        create("permanentDebug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("permanentDebug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("permanentDebug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
