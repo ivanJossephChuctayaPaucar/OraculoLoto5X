@@ -357,24 +357,12 @@ fun ProfileSettingsDialog(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             FilterChip(
                                 selected = selectedModel == GeminiOracleAdvisor.MODEL_FLASH,
                                 onClick = { selectedModel = GeminiOracleAdvisor.MODEL_FLASH },
-                                label = { Text("2.5-flash", fontSize = 10.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = GoldPrimary,
-                                    selectedLabelColor = DarkBackground,
-                                    containerColor = DarkSurfaceVariant,
-                                    labelColor = TextSecondary
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = selectedModel == GeminiOracleAdvisor.MODEL_STABLE,
-                                onClick = { selectedModel = GeminiOracleAdvisor.MODEL_STABLE },
-                                label = { Text("1.5-flash (Estable)", fontSize = 10.sp) },
+                                label = { Text("gemini-3.8-flash (Oficial Activo)", fontSize = 10.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = GoldPrimary,
                                     selectedLabelColor = DarkBackground,
@@ -384,9 +372,9 @@ fun ProfileSettingsDialog(
                                 modifier = Modifier.weight(1.3f)
                             )
                             FilterChip(
-                                selected = selectedModel == GeminiOracleAdvisor.MODEL_PRO,
-                                onClick = { selectedModel = GeminiOracleAdvisor.MODEL_PRO },
-                                label = { Text("2.5-pro", fontSize = 10.sp) },
+                                selected = selectedModel == GeminiOracleAdvisor.MODEL_FLASH_LATEST,
+                                onClick = { selectedModel = GeminiOracleAdvisor.MODEL_FLASH_LATEST },
+                                label = { Text("flash-latest", fontSize = 10.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = GoldPrimary,
                                     selectedLabelColor = DarkBackground,
