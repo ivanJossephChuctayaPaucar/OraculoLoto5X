@@ -16,10 +16,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -63,6 +65,7 @@ fun TodayOracleScreen(
     // Gemini AI states
     val geminiResult by viewModel.geminiResult.collectAsState()
     val isGeminiLoading by viewModel.isGeminiLoading.collectAsState()
+    var userCustomQuestion by remember { mutableStateOf("") }
 
     // Advanced tools collapsible state
     var showAdvancedTools by remember { mutableStateOf(false) }
@@ -438,28 +441,104 @@ fun TodayOracleScreen(
                 // Resultado o mensajes de estado
                 when (val res = geminiResult) {
                     is GeminiResult.Success -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF0C121D))
-                                .border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                                .padding(14.dp)
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                if (res.fromCache) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF0C121D))
+                                    .border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                    .padding(14.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    if (res.fromCache) {
+                                        Text(
+                                            text = "⚡ Respuesta leída desde caché local SQLite (offline)",
+                                            color = EmeraldAccent,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                     Text(
-                                        text = "⚡ Respuesta leída desde caché local offline",
-                                        color = EmeraldAccent,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
+                                        text = res.text,
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        lineHeight = 17.sp
                                     )
                                 }
+                            }
+
+                            // Caja de Pregunta Rápida (Contexto Reutilizado)
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
-                                    text = res.text,
-                                    color = TextPrimary,
-                                    fontSize = 12.sp,
-                                    lineHeight = 17.sp
+                                    text = "Pregunta rápida sobre esta jugada (Opcional):",
+                                    color = GoldLight,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedTextField(
+                                        value = userCustomQuestion,
+                                        onValueChange = { userCustomQuestion = it },
+                                        placeholder = { Text("Ej. ¿Qué pasa si cambio el 46 por el 23?", color = TextMuted, fontSize = 11.sp) },
+                                        singleLine = true,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary,
+                                            focusedBorderColor = GoldPrimary,
+                                            unfocusedBorderColor = TextSecondary.copy(alpha = 0.4f),
+                                            cursorColor = GoldPrimary
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    FilledTonalButton(
+                                        onClick = {
+                                            if (userCustomQuestion.isNotBlank() && !isGeminiLoading) {
+                                                viewModel.consultGemini(userCustomQuestion)
+                                                userCustomQuestion = ""
+                                            }
+                                        },
+                                        enabled = userCustomQuestion.isNotBlank() && !isGeminiLoading,
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = GoldPrimary,
+                                            contentColor = DarkBackground
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        Icon(Icons.Default.Send, contentDescription = "Enviar", modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    is GeminiResult.Offline -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF1E2838))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Default.CloudOff, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(22.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Modo offline activo",
+                                    color = GoldLight,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Revisa el desglose de los 5 tratados tocando cada bolilla de tu jugada maestra.",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -492,12 +571,25 @@ fun TodayOracleScreen(
                         }
                     }
                     is GeminiResult.Error -> {
-                        Text(
-                            text = "⚠ ${res.message}",
-                            color = SemaphoreRed,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF2D1619))
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "⚠ ${res.message}",
+                                color = SemaphoreRed,
+                                fontSize = 11.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { viewModel.consultGemini() }) {
+                                Text("Reintentar", color = GoldLight, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                     null -> {
                         // Sin consulta aún

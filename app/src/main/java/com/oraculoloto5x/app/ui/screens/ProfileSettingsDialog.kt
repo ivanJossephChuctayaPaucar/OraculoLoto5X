@@ -8,8 +8,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import androidx.compose.ui.window.Dialog
 import com.oraculoloto5x.app.ai.GeminiOracleAdvisor
 import com.oraculoloto5x.app.data.models.UserProfile
 import com.oraculoloto5x.app.ui.theme.*
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @Composable
@@ -35,6 +39,7 @@ fun ProfileSettingsDialog(
     onSaveProfile: (UserProfile) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var fullName by remember { mutableStateOf(currentProfile.fullName) }
     var commonName by remember { mutableStateOf(currentProfile.commonName) }
@@ -45,9 +50,11 @@ fun ProfileSettingsDialog(
     var notificationsEnabled by remember { mutableStateOf(currentProfile.notificationsEnabled) }
 
     // Gemini API settings
-    var apiKey by remember { mutableStateOf(GeminiOracleAdvisor.getApiKey(context) ?: "") }
+    var apiKey by remember { mutableStateOf(GeminiOracleAdvisor.getApiKey(context)) }
     var showApiKey by remember { mutableStateOf(false) }
     var selectedModel by remember { mutableStateOf(GeminiOracleAdvisor.getSelectedModel(context)) }
+    var isTestingKey by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -228,14 +235,14 @@ fun ProfileSettingsDialog(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            text = "GOOGLE GEMINI AI (OPCIONAL)",
+                            text = "GOOGLE GEMINI AI (ORÁCULO 5X)",
                             color = GoldLight,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = "Consulta interpretaciones herméticas con IA bajo demanda. Obtén tu API Key gratuita en aistudio.google.com",
+                            text = "Sintetiza la sabiduría de los 5 tratados con tu perfil natal y horas planetarias. API Key precargada y editable:",
                             color = TextSecondary,
                             fontSize = 11.sp,
                             lineHeight = 15.sp
@@ -243,9 +250,12 @@ fun ProfileSettingsDialog(
 
                         OutlinedTextField(
                             value = apiKey,
-                            onValueChange = { apiKey = it },
+                            onValueChange = {
+                                apiKey = it
+                                testResult = null
+                            },
                             label = { Text("Gemini API Key") },
-                            placeholder = { Text("AIzaSy...", color = TextMuted) },
+                            placeholder = { Text("AQ.Ab8...", color = TextMuted) },
                             singleLine = true,
                             visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = {
@@ -268,6 +278,76 @@ fun ProfileSettingsDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
+                        // Botón Probar API Key
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilledTonalButton(
+                                onClick = {
+                                    if (apiKey.isNotBlank() && !isTestingKey) {
+                                        isTestingKey = true
+                                        testResult = null
+                                        scope.launch {
+                                            val res = GeminiOracleAdvisor.testApiKey(apiKey.trim(), selectedModel)
+                                            res.fold(
+                                                onSuccess = { testResult = Pair(true, it) },
+                                                onFailure = { testResult = Pair(false, it.message ?: "Error al conectar") }
+                                            )
+                                            isTestingKey = false
+                                        }
+                                    }
+                                },
+                                enabled = apiKey.isNotBlank() && !isTestingKey,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = Color(0xFF263345),
+                                    contentColor = GoldLight
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                if (isTestingKey) {
+                                    CircularProgressIndicator(color = GoldPrimary, modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Probando...", fontSize = 11.sp)
+                                } else {
+                                    Icon(Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Probar API Key", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            testResult?.let { (success, message) ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = if (success) EmeraldAccent else SemaphoreRed,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = if (success) "✓ Conexión OK" else "Error",
+                                        color = if (success) EmeraldLight else SemaphoreRed,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        testResult?.takeIf { !it.first }?.let { (_, errorMsg) ->
+                            Text(
+                                text = errorMsg,
+                                color = SemaphoreRed,
+                                fontSize = 10.sp,
+                                lineHeight = 13.sp
+                            )
+                        }
+
                         Text(
                             text = "Modelo a Utilizar:",
                             color = TextSecondary,
@@ -282,26 +362,26 @@ fun ProfileSettingsDialog(
                             FilterChip(
                                 selected = selectedModel == GeminiOracleAdvisor.MODEL_FLASH,
                                 onClick = { selectedModel = GeminiOracleAdvisor.MODEL_FLASH },
-                                label = { Text("gemini-2.5-flash (Rápido)", fontSize = 11.sp) },
+                                label = { Text("gemini-3.8-flash (Recomendado)", fontSize = 10.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = GoldPrimary,
                                     selectedLabelColor = DarkBackground,
                                     containerColor = DarkSurfaceVariant,
                                     labelColor = TextSecondary
                                 ),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1.1f)
                             )
                             FilterChip(
                                 selected = selectedModel == GeminiOracleAdvisor.MODEL_PRO,
                                 onClick = { selectedModel = GeminiOracleAdvisor.MODEL_PRO },
-                                label = { Text("gemini-2.5-pro (Profundo)", fontSize = 11.sp) },
+                                label = { Text("gemini-2.5-pro", fontSize = 10.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = GoldPrimary,
                                     selectedLabelColor = DarkBackground,
                                     containerColor = DarkSurfaceVariant,
                                     labelColor = TextSecondary
                                 ),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(0.9f)
                             )
                         }
                     }

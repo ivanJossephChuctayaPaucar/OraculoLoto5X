@@ -151,7 +151,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _isBallSheetOpen.value = false
     }
 
-    fun consultGemini() {
+    fun consultGemini(customQuestion: String? = null) {
         val result = _oracleResult.value ?: return
         viewModelScope.launch {
             _isGeminiLoading.value = true
@@ -169,10 +169,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 semaphore = semaphore,
                 currentPlanetaryHour = "${hour.planet.spanishName} (${hour.startTime}–${hour.endTime})",
                 nextFavorableWindow = "${nextWindow.first.planet.spanishName} en ${nextWindow.second.toMinutes()}min",
-                masterPlayBalls = result.masterPlay
+                masterPlayBalls = result.masterPlay,
+                userQuestion = customQuestion
             )
             _geminiResult.value = gemRes
             _isGeminiLoading.value = false
+        }
+    }
+
+    fun testGeminiApiKey(apiKey: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val res = GeminiOracleAdvisor.testApiKey(apiKey)
+            res.fold(
+                onSuccess = { onResult(true, it) },
+                onFailure = { onResult(false, it.message ?: "Error al conectar") }
+            )
         }
     }
 

@@ -56,7 +56,7 @@ fun PdfPageViewerDialog(
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
 
-    // SAF folder picker
+    // SAF folder picker fallback
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
@@ -64,12 +64,14 @@ fun PdfPageViewerDialog(
             NativePdfManager.saveTreeUri(context, uri)
             isLoading = true
             errorMessage = null
-            scope.launch { loadPage(context, citation, currentPageIndex, screenWidth) { bmp, pg, err ->
-                renderedBitmap = bmp
-                pageCount = pg
-                isLoading = false
-                errorMessage = err
-            }}
+            scope.launch {
+                loadPage(context, citation, currentPageIndex, screenWidth) { bmp, pg, err ->
+                    renderedBitmap = bmp
+                    pageCount = pg
+                    isLoading = false
+                    errorMessage = err
+                }
+            }
         }
     }
 
@@ -137,24 +139,21 @@ fun PdfPageViewerDialog(
                 ) {
                     when {
                         errorMessage != null -> {
-                            // Not linked or file not found
+                            // File not found
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier = Modifier.padding(32.dp)
                             ) {
+                                Text(text = "📚", fontSize = 48.sp)
                                 Text(
-                                    text = "📚",
-                                    fontSize = 48.sp
-                                )
-                                Text(
-                                    text = "Libro no encontrado",
+                                    text = "Libro no disponible",
                                     color = GoldLight,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Vincula la carpeta que contiene:\n«${citation.expectedFileName}»",
+                                    text = "No se pudo abrir «${citation.expectedFileName}». Puedes vincular manualmente la carpeta de PDFs:",
                                     color = TextSecondary,
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -288,14 +287,9 @@ private suspend fun loadPage(
     screenWidthDp: Int,
     callback: (Bitmap?, Int, String?) -> Unit
 ) {
-    val fileUri = NativePdfManager.findFileUri(context, citation.expectedFileName)
-    if (fileUri == null) {
-        callback(null, 0, "Archivo no encontrado")
-        return
-    }
     val widthPx = (screenWidthDp * context.resources.displayMetrics.density).toInt()
-    val bitmap = NativePdfManager.renderPage(context, fileUri, pageIndex, widthPx)
-    val count = NativePdfManager.getPageCount(context, fileUri)
+    val bitmap = NativePdfManager.renderPage(context, citation.expectedFileName, pageIndex, widthPx)
+    val count = NativePdfManager.getPageCount(context, citation.expectedFileName)
     if (bitmap == null) {
         callback(null, count, "Error renderizando página")
     } else {
