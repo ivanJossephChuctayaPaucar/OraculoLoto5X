@@ -75,6 +75,13 @@ fun PdfPageViewerDialog(
         }
     }
 
+    // Liberar referencia del Bitmap al cerrar el diálogo para evitar fugas de memoria
+    DisposableEffect(Unit) {
+        onDispose {
+            renderedBitmap = null
+        }
+    }
+
     // Load page on first composition and when pageIndex changes
     LaunchedEffect(currentPageIndex) {
         isLoading = true

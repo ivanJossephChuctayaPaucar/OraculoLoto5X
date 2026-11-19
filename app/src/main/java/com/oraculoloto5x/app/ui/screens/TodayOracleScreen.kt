@@ -93,37 +93,47 @@ fun TodayOracleScreen(
             SemaphoreCard(assessment = assessment)
         }
 
-        // Sincronía Lunar Natal (Westcott / Cheiro)
+        // Sincronía Lunar Natal con Iluminación Porcentual Real
         oracleResult?.let { res ->
-            if (res.moonPhaseSync.isNotBlank()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+            val isResonance = res.moonInfo.isExactNatalResonance
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isResonance) Color(0xFF142B28) else Color(0xFF141C2E))
+                    .border(
+                        1.dp,
+                        if (isResonance) EmeraldAccent else GoldPrimary.copy(alpha = 0.4f),
+                        RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(text = "☽", fontSize = 16.sp, color = if (isResonance) EmeraldLight else GoldLight)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isResonance) "¡RESONANCIA LUNAR NATAL EXACTA (50%)!" else "CICLO LUNAR OFFLINE:",
+                        color = if (isResonance) EmeraldLight else GoldLight,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = res.moonInfo.displaySummary,
+                        color = if (isResonance) EmeraldLight else TextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF141C2E))
-                        .border(1.dp, GoldPrimary.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isResonance) EmeraldDark else Color(0xFF263345))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
                 ) {
-                    Text(text = "☽", fontSize = 16.sp, color = GoldLight)
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "SINCRONÍA LUNAR (Resonancia Natal al 50%):",
-                            color = GoldLight,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = res.moonPhaseSync,
-                            color = if (res.riskAssessment.moonBonusMultiplier >= 2.0) EmeraldLight else TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
                     Text(
                         text = "Casa 5: 5 y 6",
-                        color = GoldPrimary,
+                        color = if (isResonance) EmeraldLight else GoldPrimary,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )

@@ -120,7 +120,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val lottery = _selectedLottery.value
             val frequencies = dbHelper.getHistoricalFrequencies(lottery)
-            val fusionEngine = LotteryFusionEngine(_userProfile.value, frequencies)
+            val lastDraw = _drawHistory.value.firstOrNull()?.balls ?: emptyList()
+            val fusionEngine = LotteryFusionEngine(
+                userProfile = _userProfile.value,
+                historicalFrequencies = frequencies,
+                lastOfficialDrawBalls = lastDraw
+            )
 
             val result = fusionEngine.generateOraclePlay(
                 lotteryType = lottery,
@@ -164,11 +169,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 context = getApplication(),
                 dbHelper = dbHelper,
                 lotteryName = result.lotteryType.displayName,
-                millmanPath = "37/10",
-                missingPhillipsDigits = "4, 5, 6",
                 semaphore = semaphore,
                 currentPlanetaryHour = "${hour.planet.spanishName} (${hour.startTime}–${hour.endTime})",
                 nextFavorableWindow = "${nextWindow.first.planet.spanishName} en ${nextWindow.second.toMinutes()}min",
+                moonToday = result.moonInfo.displaySummary,
                 masterPlayBalls = result.masterPlay,
                 userQuestion = customQuestion
             )

@@ -31,30 +31,35 @@ object GeminiOracleAdvisor {
     // Default API Key encoded in Base64 to prevent VCS Push Protection blocks
     private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SjBla0RZNTR4Y3RRRW9YUDBac1NVcHZsTTNST04zMVIwTmg5dzVpMzdaU3c="
 
-    // Models supported by Google AI Studio
-    const val MODEL_FLASH = "gemini-3.8-flash"
+    // Models supported by Google AI Studio (gemini-2.5-flash principal, gemini-2.5-pro respaldo)
+    const val MODEL_FLASH = "gemini-2.5-flash"
     const val MODEL_PRO = "gemini-2.5-pro"
-    val FALLBACK_MODELS = listOf("gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest")
+    val FALLBACK_MODELS = listOf(MODEL_FLASH, MODEL_PRO)
 
     private const val ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
     private val SYSTEM_INSTRUCTION = """
-Eres el Oráculo 5X, un Maestro Hermético que sintetiza cinco tratados ancestrales:
-1. Cheiro — Numerologia Caldea de compuestos y dias favorables (Cap. XXX)
-2. Dan Millman — Senderos de Vida y arquetipos del destino (Sendero 37/10)
-3. David Phillips — Cuadricula de Pitagoras (casillas vacias 4-5-6 y 7 aislado)
-4. W. W. Westcott — Numeros Perfectos (6, 28), Primos y Horas Planetarias
-5. Glynis McCants — Compatibilidad Natural (Triada 1-5-7)
+Eres el Oráculo 5X, un Maestro Hermético que sintetiza cinco tratados ancestrales aplicados a lotería:
+1. Cheiro — Numerologia Caldea de compuestos y dias favorables (Cap. XXX).
+2. Dan Millman — Senderos de Vida y leyes espirituales (Sendero 37/10).
+3. David Phillips — Cuadricula Pitagorica 3x3 (Flecha de Frustracion 4-5-6 y 7 aislado).
+4. W. W. Westcott — Numeros Perfectos (6, 28), Primos, Horas Planetarias y Casa 5 Agathe Tuche.
+5. Glynis McCants — Compatibilidad Natural (Triada 1-5-7) e Indice Lucky Lotto.
+
+PERFIL NATAL FIJO DEL OPERADOR:
+- Operador: Ivan Josseph Chuctaya Paucar (19/07/1991 02:00 AM, Cuspide Cancer-Leo 26° Cancer).
+- Lugar natal: Sicuani (-14.2667, -71.2333, Caldeo SICUANI = 20 -> 2 Luna).
+- Carta: Sendero Millman 37/10, Serie Solar Cheiro 1-4, Flecha de Frustracion Phillips 4-5-6, Casa 5 Agathe Tuche de Westcott (Hora Sideral 22h 01m, Ascendente 27° Tauro, regentes Mercurio 5 y Venus 6), Luna natal Cuarto Creciente 50%, Triada McCants 1-5-7.
 
 REGLAS ABSOLUTAS:
 - Responde SIEMPRE en espanol. Tono: sabio, sereno, directo y estrategico.
 - NUNCA inventes bolillas ni alteres los numeros recibidos en el contexto.
 - NUNCA prometas premios garantizados.
-- Tu respuesta principal debe tener maximo 160 palabras divididas exactamente en 3 bloques en negrita:
-  **Veredicto del Día**: Si conviene apostar hoy o solo observar segun el semaforo y reglas de Cheiro.
-  **Lectura de tus Bolillas**: Sinergia y equilibrio hermetico de 2-3 bolillas clave en tu cuadricula natal.
+- Tu respuesta debe tener maximo 140 palabras divididas exactamente en 3 bloques en negrita:
+  **Veredicto del Día**: Evaluacion del semaforo segun las reglas de Cheiro y contexto solar/lunar.
+  **Lectura de tus Bolillas**: Sinergia hermetica de 2-3 bolillas clave (especialmente regentes 5 y 6, y compuestos 19 y 37).
   **Ventana de Acción**: Rango exacto de minutos u horas planetarias favorables (Sol o Luna) antes del cierre de ventas (21:50).
-- Si el usuario incluye una pregunta puntual, responde a su duda directamente dentro de los bloques sin exceder la brevedad.
+- Si el usuario incluye una pregunta puntual, responde a su duda dentro de los bloques sin exceder la brevedad.
 """.trimIndent()
 
     fun getApiKey(context: Context): String {
@@ -108,7 +113,6 @@ REGLAS ABSOLUTAS:
                 if (code == 200) {
                     return@withContext Result.success("Conexión exitosa con $m")
                 } else if (code == 404) {
-                    // Try next fallback model
                     continue
                 } else {
                     val msg = try {
@@ -129,11 +133,10 @@ REGLAS ABSOLUTAS:
         context: Context,
         dbHelper: LotoDatabaseHelper,
         lotteryName: String,
-        millmanPath: String,
-        missingPhillipsDigits: String,
         semaphore: String,
         currentPlanetaryHour: String,
         nextFavorableWindow: String,
+        moonToday: String,
         masterPlayBalls: List<Int>,
         userQuestion: String? = null
     ): GeminiResult = withContext(Dispatchers.IO) {
@@ -141,8 +144,8 @@ REGLAS ABSOLUTAS:
         val apiKey = getApiKey(context)
         if (apiKey.isBlank()) return@withContext GeminiResult.NoApiKey
 
-        // Check SQLite cache only when no custom question is asked
-        val cacheKey = "${LocalDate.now()}-$lotteryName-${masterPlayBalls.sorted().joinToString(",")}"
+        val todayStr = LocalDate.now().toString()
+        val cacheKey = "$todayStr-$lotteryName-${masterPlayBalls.sorted().joinToString(",")}"
         if (userQuestion.isNullOrBlank()) {
             val cached = dbHelper.getGeminiCache(cacheKey)
             if (cached != null) return@withContext GeminiResult.Success(cached, fromCache = true)
@@ -151,20 +154,17 @@ REGLAS ABSOLUTAS:
         val primaryModel = getSelectedModel(context)
         val candidateModels = listOf(primaryModel) + FALLBACK_MODELS.filter { it != primaryModel }
 
+        // JSON dinámico ultra-comprimido (~130 bytes)
         val userContent = JSONObject().apply {
             put("loteria", lotteryName)
-            put("sendero_millman", millmanPath)
-            put("digitos_faltantes_phillips", missingPhillipsDigits)
+            put("fecha", todayStr)
             put("semaforo", semaphore)
             put("hora_planetaria_cusco", currentPlanetaryHour)
-            put("proxima_ventana_favorable", nextFavorableWindow)
+            put("proxima_ventana", nextFavorableWindow)
+            put("luna_hoy", moonToday)
             put("jugada_maestra", masterPlayBalls.joinToString("-"))
-            put("lugar_natal", "Sicuani (-14.2667, -71.2333, Caldeo SICUANI = 20 -> 2)")
-            put("hora_sideral_natal", "22h 01m -> Ascendente Tauro / Casa 5 Agathe Tuche (Regentes 5 y 6)")
-            put("luna_natal", "Cuarto Creciente (50% iluminada)")
-            put("hora_natal", "02:00 AM (Cúspide Cáncer-Leo, 26° Cáncer)")
             if (!userQuestion.isNullOrBlank()) {
-                put("pregunta_puntual_usuario", userQuestion.trim())
+                put("pregunta_usuario", userQuestion.trim())
             }
         }.toString()
 
@@ -177,8 +177,8 @@ REGLAS ABSOLUTAS:
                 put("parts", JSONArray().put(JSONObject().put("text", userContent)))
             }))
             put("generationConfig", JSONObject().apply {
-                put("temperature", 0.7)
-                put("maxOutputTokens", 450)
+                put("temperature", 0.6)
+                put("maxOutputTokens", 350)
             })
         }.toString()
 
@@ -208,13 +208,11 @@ REGLAS ABSOLUTAS:
                         .getJSONObject(0)
                         .getString("text").trim()
 
-                    // Only save to cache if it's the standard daily consultation
                     if (userQuestion.isNullOrBlank()) {
                         dbHelper.saveGeminiCache(cacheKey, text)
                     }
                     return@withContext GeminiResult.Success(text)
                 } else if (code == 404) {
-                    // Try next model in fallback list
                     continue
                 } else {
                     val msg = try {

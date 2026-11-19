@@ -2,6 +2,18 @@ package com.oraculoloto5x.app.data.models
 
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlin.math.cos
+
+data class MoonPhaseInfo(
+    val title: String,
+    val bonus: Double,
+    val illuminationPct: Int,
+    val isWaxing: Boolean,
+    val isExactNatalResonance: Boolean
+) {
+    val displaySummary: String
+        get() = "Luna hoy: $illuminationPct% · ${if (isExactNatalResonance) "Cuarto Creciente (Resonancia 50% Natal)" else if (isWaxing) "Creciente" else "Menguante"}"
+}
 
 /**
  * Perfil Astro-Numerológico Natal de Alta Precisión
@@ -30,21 +42,37 @@ data class NatalAstronomicalProfile(
         val DEFAULT = NatalAstronomicalProfile()
 
         /**
-         * Cálculo offline de fase lunar actual (sin internet)
-         * Ciclo sinódico: 29.53058867 días desde 2000-01-06 (Epoch day 10962)
+         * Cálculo offline de fase lunar e iluminación porcentual real
+         * Ciclo sinódico estándar: 29.53058867 días desde Epoch 10962 (2000-01-06)
          */
-        fun getMoonSyncBonus(targetDateEpochDay: Long): Pair<String, Double> {
+        fun getMoonSyncBonus(targetDateEpochDay: Long): MoonPhaseInfo {
             val synodicMonth = 29.53058867
             val daysSinceRef = (targetDateEpochDay - 10962).toDouble()
             val phaseAge = ((daysSinceRef % synodicMonth) + synodicMonth) % synodicMonth
 
-            return when {
-                // Ventana de Cuarto Creciente (días 5.5 a 9.5 -> ~50% iluminada, resonancia natal exacta)
-                phaseAge in 5.5..9.5 -> "Resonancia Exacta: Cuarto Creciente Natal (+2.0)" to 2.0
-                // Toda la fase creciente (días 1.0 a 14.7 -> Westcott p.62)
-                phaseAge in 1.0..14.7 -> "Luna Creciente Activa (+1.0)" to 1.0
-                else -> "Luna Menguante (Consolidación)" to 0.0
+            val angleRad = Math.toRadians((phaseAge / synodicMonth) * 360.0)
+            val illuminationPct = (((1.0 - cos(angleRad)) / 2.0) * 100.0).toInt().coerceIn(0, 100)
+            val isWaxing = phaseAge < (synodicMonth / 2.0)
+
+            // Resonancia con el 50% Cuarto Creciente natal (ventana 45%..55% creciente o días 5.5..9.5)
+            val isExactNatalResonance = isWaxing && (illuminationPct in 45..55 || phaseAge in 5.5..9.5)
+
+            val (title, bonus) = when {
+                isExactNatalResonance ->
+                    "Resonancia Exacta: Cuarto Creciente Natal ($illuminationPct%) [+2.0]" to 2.0
+                isWaxing ->
+                    "Luna Creciente Activa ($illuminationPct%) [+1.0]" to 1.0
+                else ->
+                    "Luna Menguante ($illuminationPct%) [Consolidación]" to 0.0
             }
+
+            return MoonPhaseInfo(
+                title = title,
+                bonus = bonus,
+                illuminationPct = illuminationPct,
+                isWaxing = isWaxing,
+                isExactNatalResonance = isExactNatalResonance
+            )
         }
     }
 }

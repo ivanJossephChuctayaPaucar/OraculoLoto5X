@@ -47,14 +47,14 @@ object NativePdfManager {
     // ── Open ParcelFileDescriptor (Bundled assets Priority 1, SAF Priority 2) ──
 
     fun openParcelFileDescriptor(context: Context, fileName: String): ParcelFileDescriptor? {
-        // 1. Try bundled assets / local storage
+        // 1. Try bundled assets / cacheDir storage
         try {
-            val booksDir = File(context.filesDir, "books")
+            val booksDir = File(context.cacheDir, "books")
             if (!booksDir.exists()) booksDir.mkdirs()
             val localFile = File(booksDir, fileName)
 
             if (!localFile.exists() || localFile.length() == 0L) {
-                // Copy from bundled assets
+                // Copy from bundled assets to cacheDir for efficient memory management
                 try {
                     context.assets.open("books/$fileName").use { input ->
                         localFile.outputStream().use { output ->
@@ -167,8 +167,8 @@ object NativePdfManager {
     }
 
     fun hasBook(context: Context, fileName: String): Boolean {
-        // Check local storage / asset
-        val localFile = File(File(context.filesDir, "books"), fileName)
+        // Check cacheDir / asset
+        val localFile = File(File(context.cacheDir, "books"), fileName)
         if (localFile.exists() && localFile.length() > 0L) return true
         try {
             context.assets.open("books/$fileName").use { return true }
@@ -176,7 +176,7 @@ object NativePdfManager {
         return findFileUri(context, fileName) != null
     }
 
-    // ── Render a page as Bitmap (thread-safe, warm parchment background) ──────
+    // ── Render a page as Bitmap (thread-safe, dynamic scale max 1440px) ──────
 
     suspend fun renderPage(
         context: Context,
@@ -194,13 +194,14 @@ object NativePdfManager {
                 val safeIndex = pageIndex.coerceIn(0, pdfRenderer.pageCount - 1)
                 page = pdfRenderer.openPage(safeIndex)
 
-                val scale = 2.0f
-                val width = (viewWidthPx * scale).toInt().coerceAtLeast(800)
-                val height = (width.toFloat() / page.width * page.height).toInt()
+                // Escala dinámica limitada a un ancho máximo de 1440 px para proteger la RAM
+                val dynamicScale = (1440f / page.width.toFloat()).coerceIn(1.0f, 2.0f)
+                val width = (page.width * dynamicScale).toInt().coerceAtLeast(600)
+                val height = (page.height * dynamicScale).toInt()
 
                 val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-                // Warm parchment background — legible over dark theme
+                // Fondo cálido pergamino
                 Canvas(bitmap).drawColor(Color.parseColor("#F5EFE6"))
 
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
