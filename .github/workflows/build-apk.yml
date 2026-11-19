@@ -30,11 +30,14 @@ jobs:
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Aceptar licencias de Android SDK
+        run: yes | sdkmanager --licenses || true
+
       - name: Dar permisos de ejecución a gradlew
         run: chmod +x ./gradlew
 
       - name: Compilar APK en modo Debug
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Subir APK como Artefacto descargable
         uses: actions/upload-artifact@v4

@@ -172,7 +172,7 @@ fun BallDetailedInspectionCard(analysis: NumberAnalysis) {
                 }
             }
 
-            Divider(color = Color(0xFF263345), thickness = 1.dp)
+            HorizontalDivider(color = Color(0xFF263345), thickness = 1.dp)
 
             // 1. Cheiro
             TreatiseSection(

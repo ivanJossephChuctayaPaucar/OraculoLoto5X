@@ -4,11 +4,8 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Golden Star -->
     <path
         android:fillColor="#D4AF37"
-        android:pathData="M54,20 L58,38 L76,38 L62,49 L67,67 L54,56 L41,67 L46,49 L32,38 L50,38 Z" />
-    <path
-        android:strokeColor="#10B981"
-        android:strokeWidth="2"
-        android:pathData="M54,12 A42,42 0 1,0 54,96 A42,42 0 1,0 54,12" />
+        android:pathData="M 54,20 L 62,38 L 82,41 L 67,55 L 71,75 L 54,65 L 37,75 L 41,55 L 26,41 L 46,38 Z" />
 </vector>

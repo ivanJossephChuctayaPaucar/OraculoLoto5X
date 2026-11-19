@@ -26,7 +26,6 @@ import com.oraculoloto5x.app.data.models.PlanetaryHour
 import com.oraculoloto5x.app.ui.theme.*
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
@@ -85,7 +84,7 @@ fun HoursAndDaysScreen(
                         Icon(Icons.Default.ChevronLeft, contentDescription = "Mes anterior", tint = GoldLight)
                     }
 
-                    val monthName = currentYearMonth.month.getDisplayName(TextStyle.FULL, Locale("es", "ES")).uppercase()
+                    val monthName = currentYearMonth.month.getDisplayName(java.time.format.TextStyle.FULL, Locale("es", "ES")).uppercase()
                     Text(
                         text = "$monthName ${currentYearMonth.year}",
                         color = TextPrimary,
