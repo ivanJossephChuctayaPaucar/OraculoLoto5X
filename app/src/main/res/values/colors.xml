@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black_bg">#0B0D13</color>
+    <color name="gold_primary">#D4AF37</color>
+    <color name="emerald_accent">#10B981</color>
+    <color name="slate_surface">#161B26</color>
+</resources>
