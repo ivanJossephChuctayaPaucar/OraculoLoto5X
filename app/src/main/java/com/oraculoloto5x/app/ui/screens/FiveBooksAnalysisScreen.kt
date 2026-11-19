@@ -172,7 +172,12 @@ fun BallDetailedInspectionCard(analysis: NumberAnalysis) {
                 }
             }
 
-            HorizontalDivider(color = Color(0xFF263345), thickness = 1.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color(0xFF263345))
+            )
 
             // 1. Cheiro
             TreatiseSection(
