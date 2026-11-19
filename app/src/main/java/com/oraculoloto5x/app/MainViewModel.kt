@@ -120,7 +120,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val lottery = _selectedLottery.value
             val frequencies = dbHelper.getHistoricalFrequencies(lottery)
-            val lastDraw = _drawHistory.value.firstOrNull()?.balls ?: emptyList()
+            val lastDraw: List<Int> = _drawHistory.value.firstOrNull()?.winningBalls ?: emptyList()
             val fusionEngine = LotteryFusionEngine(
                 userProfile = _userProfile.value,
                 historicalFrequencies = frequencies,
