@@ -3,6 +3,8 @@ package com.oraculoloto5x.app
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.oraculoloto5x.app.ai.GeminiOracleAdvisor
+import com.oraculoloto5x.app.ai.GeminiResult
 import com.oraculoloto5x.app.data.knowledge.NumerologyKnowledgeBase
 import com.oraculoloto5x.app.data.local.LotoDatabaseHelper
 import com.oraculoloto5x.app.data.models.*
@@ -67,6 +69,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAddDrawDialogOpen = MutableStateFlow(false)
     val isAddDrawDialogOpen: StateFlow<Boolean> = _isAddDrawDialogOpen.asStateFlow()
 
+    private val _isBallSheetOpen = MutableStateFlow(false)
+    val isBallSheetOpen: StateFlow<Boolean> = _isBallSheetOpen.asStateFlow()
+
+    private val _hasPlaySavedToday = MutableStateFlow(false)
+    val hasPlaySavedToday: StateFlow<Boolean> = _hasPlaySavedToday.asStateFlow()
+
+    // ── Gemini AI state ───────────────────────────────────────────────────────
+    private val _geminiResult = MutableStateFlow<GeminiResult?>(null)
+    val geminiResult: StateFlow<GeminiResult?> = _geminiResult.asStateFlow()
+
+    private val _isGeminiLoading = MutableStateFlow(false)
+    val isGeminiLoading: StateFlow<Boolean> = _isGeminiLoading.asStateFlow()
+
+    // ── PDF viewer state ──────────────────────────────────────────────────────
+    private val _pdfBooksLinked = MutableStateFlow(0)
+    val pdfBooksLinked: StateFlow<Int> = _pdfBooksLinked.asStateFlow()
+
     init {
         loadData()
         generateOraclePlay()
@@ -123,6 +142,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _selectedBallForAnalysis.value = result.allBallsAnalysis.find { it.ballNumber == ball }
     }
 
+    fun openBallSheet(ball: Int) {
+        selectBallForAnalysis(ball)
+        _isBallSheetOpen.value = true
+    }
+
+    fun closeBallSheet() {
+        _isBallSheetOpen.value = false
+    }
+
+    fun consultGemini() {
+        val result = _oracleResult.value ?: return
+        viewModelScope.launch {
+            _isGeminiLoading.value = true
+            _geminiResult.value = null
+            val profile = _userProfile.value
+            val hour = _currentPlanetaryHour.value
+            val nextWindow = _nextFavorableWindow.value
+            val semaphore = result.riskAssessment.riskLevel.name
+            val gemRes = GeminiOracleAdvisor.consult(
+                context = getApplication(),
+                dbHelper = dbHelper,
+                lotteryName = result.lotteryType.displayName,
+                millmanPath = "37/10",
+                missingPhillipsDigits = "4, 5, 6",
+                semaphore = semaphore,
+                currentPlanetaryHour = "${hour.planet.spanishName} (${hour.startTime}–${hour.endTime})",
+                nextFavorableWindow = "${nextWindow.first.planet.spanishName} en ${nextWindow.second.toMinutes()}min",
+                masterPlayBalls = result.masterPlay
+            )
+            _geminiResult.value = gemRes
+            _isGeminiLoading.value = false
+        }
+    }
+
+    fun clearGeminiResult() {
+        _geminiResult.value = null
+    }
+
+    fun refreshPdfCount() {
+        viewModelScope.launch {
+            _pdfBooksLinked.value = com.oraculoloto5x.app.pdf.NativePdfManager.countFoundBooks(getApplication())
+        }
+    }
+
     fun saveCurrentPlay() {
         val result = _oracleResult.value ?: return
         val currentHour = _currentPlanetaryHour.value
@@ -138,6 +201,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         dbHelper.savePlay(play)
+        _hasPlaySavedToday.value = true
         loadData()
     }
 

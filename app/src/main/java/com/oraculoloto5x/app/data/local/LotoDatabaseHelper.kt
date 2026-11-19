@@ -20,7 +20,10 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "oraculo_loto_5x.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
+
+        // AI Oracle Cache
+        const val TABLE_AI_CACHE = "ai_oracle_cache"
 
         // Tabla Sorteos Históricos
         const val TABLE_SORTEOS = "sorteos_historicos"
@@ -101,6 +104,7 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
         db.execSQL(createSorteosTable)
         db.execSQL(createJugadasTable)
         db.execSQL(createPerfilTable)
+        createAiCacheTable(db)
 
         // Semilla: Perfil por defecto de Iván Josseph
         val userValues = ContentValues().apply {
@@ -121,10 +125,20 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_SORTEOS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_JUGADAS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_PERFIL")
-        onCreate(db)
+        // Safe upgrade: preserve existing tables, only add new ones
+        if (oldVersion < 2) {
+            createAiCacheTable(db)
+        }
+    }
+
+    private fun createAiCacheTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_AI_CACHE (
+                cache_key TEXT PRIMARY KEY,
+                response_text TEXT NOT NULL,
+                timestamp INTEGER NOT NULL
+            )
+        """.trimIndent())
     }
 
     private fun insertInitialDrawsSeed(db: SQLiteDatabase) {
@@ -418,5 +432,31 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
                 else -> "Sin premio ($matches aciertos)"
             }
         }
+    }
+
+    // ── Gemini AI Cache ───────────────────────────────────────────────────────
+
+    fun getGeminiCache(cacheKey: String): String? {
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_AI_CACHE, arrayOf("response_text", "timestamp"),
+            "cache_key = ?", arrayOf(cacheKey),
+            null, null, null
+        )
+        return if (cursor.moveToFirst()) {
+            cursor.getString(0).also { cursor.close() }
+        } else {
+            cursor.close(); null
+        }
+    }
+
+    fun saveGeminiCache(cacheKey: String, responseText: String) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("cache_key", cacheKey)
+            put("response_text", responseText)
+            put("timestamp", System.currentTimeMillis())
+        }
+        db.insertWithOnConflict(TABLE_AI_CACHE, null, values, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
     }
 }

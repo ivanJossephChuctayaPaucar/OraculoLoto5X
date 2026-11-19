@@ -2,20 +2,28 @@ package com.oraculoloto5x.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.oraculoloto5x.app.ai.GeminiOracleAdvisor
 import com.oraculoloto5x.app.data.models.UserProfile
 import com.oraculoloto5x.app.ui.theme.*
 import java.time.LocalDate
@@ -26,6 +34,8 @@ fun ProfileSettingsDialog(
     onDismiss: () -> Unit,
     onSaveProfile: (UserProfile) -> Unit
 ) {
+    val context = LocalContext.current
+
     var fullName by remember { mutableStateOf(currentProfile.fullName) }
     var commonName by remember { mutableStateOf(currentProfile.commonName) }
     var birthDateStr by remember { mutableStateOf(currentProfile.birthDate.toString()) }
@@ -33,6 +43,11 @@ fun ProfileSettingsDialog(
     var lonStr by remember { mutableStateOf(currentProfile.longitude.toString()) }
     var tz by remember { mutableStateOf(currentProfile.timeZone) }
     var notificationsEnabled by remember { mutableStateOf(currentProfile.notificationsEnabled) }
+
+    // Gemini API settings
+    var apiKey by remember { mutableStateOf(GeminiOracleAdvisor.getApiKey(context) ?: "") }
+    var showApiKey by remember { mutableStateOf(false) }
+    var selectedModel by remember { mutableStateOf(GeminiOracleAdvisor.getSelectedModel(context)) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -200,7 +215,99 @@ fun ProfileSettingsDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Sección Google Gemini AI
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF141C2B))
+                        .border(1.dp, GoldPrimary.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "GOOGLE GEMINI AI (OPCIONAL)",
+                            color = GoldLight,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "Consulta interpretaciones herméticas con IA bajo demanda. Obtén tu API Key gratuita en aistudio.google.com",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+
+                        OutlinedTextField(
+                            value = apiKey,
+                            onValueChange = { apiKey = it },
+                            label = { Text("Gemini API Key") },
+                            placeholder = { Text("AIzaSy...", color = TextMuted) },
+                            singleLine = true,
+                            visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showApiKey = !showApiKey }) {
+                                    Icon(
+                                        imageVector = if (showApiKey) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = "Alternar visibilidad",
+                                        tint = GoldPrimary
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = GoldPrimary,
+                                unfocusedBorderColor = TextSecondary.copy(alpha = 0.4f),
+                                focusedLabelColor = GoldLight,
+                                unfocusedLabelColor = TextSecondary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Text(
+                            text = "Modelo a Utilizar:",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = selectedModel == GeminiOracleAdvisor.MODEL_FLASH,
+                                onClick = { selectedModel = GeminiOracleAdvisor.MODEL_FLASH },
+                                label = { Text("gemini-2.5-flash (Rápido)", fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = GoldPrimary,
+                                    selectedLabelColor = DarkBackground,
+                                    containerColor = DarkSurfaceVariant,
+                                    labelColor = TextSecondary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = selectedModel == GeminiOracleAdvisor.MODEL_PRO,
+                                onClick = { selectedModel = GeminiOracleAdvisor.MODEL_PRO },
+                                label = { Text("gemini-2.5-pro (Profundo)", fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = GoldPrimary,
+                                    selectedLabelColor = DarkBackground,
+                                    containerColor = DarkSurfaceVariant,
+                                    labelColor = TextSecondary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // Botones
                 Row(
@@ -224,6 +331,10 @@ fun ProfileSettingsDialog(
                             }
                             val parsedLat = latStr.toDoubleOrNull() ?: currentProfile.latitude
                             val parsedLon = lonStr.toDoubleOrNull() ?: currentProfile.longitude
+
+                            // Save Gemini settings
+                            GeminiOracleAdvisor.saveApiKey(context, apiKey)
+                            GeminiOracleAdvisor.saveSelectedModel(context, selectedModel)
 
                             onSaveProfile(
                                 currentProfile.copy(

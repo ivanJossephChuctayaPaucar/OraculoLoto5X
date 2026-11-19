@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
 
 enum class NavigationTab(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     TODAY("Hoy", Icons.Default.AutoAwesome),
-    FIVE_BOOKS("Por Qué", Icons.Default.MenuBook),
+    FIVE_BOOKS("Tratados", Icons.Default.MenuBook),
     HOURS_DAYS("Horas y Días", Icons.Default.Schedule),
     HISTORY("Historial", Icons.Default.History)
 }
@@ -163,11 +163,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
         ) {
             when (selectedTab) {
                 NavigationTab.TODAY -> TodayOracleScreen(
-                    viewModel = viewModel,
-                    onNavigateToAnalysis = { ball ->
-                        viewModel.selectBallForAnalysis(ball)
-                        selectedTab = NavigationTab.FIVE_BOOKS
-                    }
+                    viewModel = viewModel
                 )
                 NavigationTab.FIVE_BOOKS -> FiveBooksAnalysisScreen(
                     viewModel = viewModel
