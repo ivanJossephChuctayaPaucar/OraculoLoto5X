@@ -2,7 +2,6 @@ package com.oraculoloto5x.app.ai
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.oraculoloto5x.app.data.local.LotoDatabaseHelper
 import com.oraculoloto5x.app.data.models.ChatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +13,6 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.UnknownHostException
-import java.time.LocalDate
 
 sealed class GeminiResult {
     data class Success(val text: String, val fromCache: Boolean = false) : GeminiResult()
@@ -33,12 +31,10 @@ object GeminiOracleAdvisor {
     private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SjBla0RZNTR4Y3RRRW9YUDBac1NVcHZsTTNST04zMVIwTmg5dzVpMzdaU3c="
 
     // Models supported by Google AI Studio
-    const val MODEL_FLASH = "gemini-3.8-flash"
     const val MODEL_FLASH_25 = "gemini-2.5-flash"
-    const val MODEL_PRO_25 = "gemini-2.5-pro"
-    const val MODEL_FLASH_LATEST = "gemini-flash-latest"
+    const val MODEL_FLASH_20 = "gemini-2.0-flash"
 
-    val FALLBACK_MODELS = listOf(MODEL_FLASH_25, MODEL_FLASH, MODEL_FLASH_LATEST, MODEL_PRO_25)
+    val FALLBACK_MODELS = listOf(MODEL_FLASH_20)
 
     private const val ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -56,59 +52,95 @@ object GeminiOracleAdvisor {
         getPrefs(context).edit().putString(KEY_API_KEY, key.trim()).apply()
     }
 
-    fun getSelectedModel(context: Context): String =
-        getPrefs(context).getString(KEY_MODEL, MODEL_FLASH_25) ?: MODEL_FLASH_25
+    fun getSelectedModel(context: Context): String {
+        val model = getPrefs(context).getString(KEY_MODEL, MODEL_FLASH_25) ?: MODEL_FLASH_25
+        return if (model == MODEL_FLASH_25 || model == MODEL_FLASH_20) model else MODEL_FLASH_25
+    }
 
     fun saveSelectedModel(context: Context, model: String) {
         getPrefs(context).edit().putString(KEY_MODEL, model).apply()
     }
 
-    /** Prueba rápida de API Key con un payload mínimo (10 tokens) */
+    /** Prueba rápida de API Key con un payload mínimo */
     suspend fun testApiKey(apiKey: String, model: String = MODEL_FLASH_25): Result<String> = withContext(Dispatchers.IO) {
-        val testModels = listOf(model) + FALLBACK_MODELS.filter { it != model }
-        for (m in testModels) {
+        val testModel = if (model == MODEL_FLASH_25 || model == MODEL_FLASH_20) model else MODEL_FLASH_25
+        val candidateModels = if (testModel == MODEL_FLASH_25) {
+            listOf(MODEL_FLASH_25, MODEL_FLASH_20)
+        } else {
+            listOf(testModel)
+        }
+
+        for (i in candidateModels.indices) {
+            val m = candidateModels[i]
+            val isFallback = (i > 0)
             val urlStr = "$ENDPOINT_BASE/$m:generateContent?key=$apiKey"
+            val generationConfig = JSONObject().apply {
+                put("maxOutputTokens", 10)
+                if (m.contains("2.5")) {
+                    put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
+                }
+            }
             val body = JSONObject().apply {
                 put("contents", JSONArray().put(JSONObject().apply {
                     put("role", "user")
                     put("parts", JSONArray().put(JSONObject().put("text", "ping")))
                 }))
-                put("generationConfig", JSONObject().put("maxOutputTokens", 5))
+                put("generationConfig", generationConfig)
             }.toString()
 
+            var conn: HttpURLConnection? = null
             try {
-                val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+                conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     setRequestProperty("Content-Type", "application/json")
                     doOutput = true
-                    connectTimeout = 8_000
-                    readTimeout = 8_000
+                    connectTimeout = 20_000
+                    readTimeout = 45_000
                 }
                 OutputStreamWriter(conn.outputStream, "UTF-8").use { it.write(body) }
                 val code = conn.responseCode
                 val stream = if (code == 200) conn.inputStream else (conn.errorStream ?: conn.inputStream)
                 val resp = BufferedReader(InputStreamReader(stream, "UTF-8")).readText()
-                conn.disconnect()
 
                 if (code == 200) {
                     return@withContext Result.success("Conexión exitosa con $m")
-                } else if (code == 404) {
-                    continue
+                } else if (code == 404 || code == 429) {
+                    if (!isFallback && i + 1 < candidateModels.size) {
+                        continue
+                    }
+                    if (code == 429) {
+                        return@withContext Result.failure(Exception("Cuota gratuita temporalmente alcanzada (HTTP 429). Espera 1 minuto."))
+                    } else {
+                        return@withContext Result.failure(Exception("Modelo no disponible (HTTP 404)."))
+                    }
+                } else if (code == 400 || code == 403) {
+                    val errorMessage = try {
+                        JSONObject(resp).getJSONObject("error").getString("message")
+                    } catch (_: Exception) { "Clave no autorizada o restringida" }
+                    return@withContext Result.failure(Exception("API Key inválida o restringida (HTTP $code): $errorMessage"))
                 } else {
-                    val msg = try {
+                    val errorMessage = try {
                         JSONObject(resp).getJSONObject("error").getString("message")
                     } catch (_: Exception) { "Error HTTP $code" }
-                    return@withContext Result.failure(Exception(msg))
+                    return@withContext Result.failure(Exception("Error HTTP $code: $errorMessage"))
                 }
-            } catch (e: UnknownHostException) {
-                return@withContext Result.failure(Exception("Sin conexión a internet. Activa datos o Wi-Fi."))
             } catch (e: java.net.SocketTimeoutException) {
-                return@withContext Result.failure(Exception("Tiempo de espera agotado. Inténtalo de nuevo."))
+                return@withContext Result.failure(Exception("Tiempo de espera agotado (45s). Revisa tu señal móvil o prueba nuevamente."))
+            } catch (e: UnknownHostException) {
+                return@withContext Result.failure(Exception("Sin conexión a internet o DNS bloqueado."))
             } catch (e: Exception) {
-                return@withContext Result.failure(e)
+                val msg = e.message ?: ""
+                if (msg.contains("Unable to resolve host", ignoreCase = true) ||
+                    msg.contains("Network is unreachable", ignoreCase = true) ||
+                    msg.contains("Failed to connect", ignoreCase = true)) {
+                    return@withContext Result.failure(Exception("Sin conexión a internet o DNS bloqueado."))
+                }
+                return@withContext Result.failure(Exception("Error de conexión: $msg"))
+            } finally {
+                conn?.disconnect()
             }
         }
-        return@withContext Result.failure(Exception("Modelos no disponibles (404)"))
+        return@withContext Result.failure(Exception("No se pudo verificar la API Key."))
     }
 
     /**
@@ -125,7 +157,11 @@ object GeminiOracleAdvisor {
         if (apiKey.isBlank()) return@withContext GeminiResult.NoApiKey
 
         val primaryModel = getSelectedModel(context)
-        val candidateModels = listOf(primaryModel) + FALLBACK_MODELS.filter { it != primaryModel }
+        val candidateModels = if (primaryModel == MODEL_FLASH_25) {
+            listOf(MODEL_FLASH_25, MODEL_FLASH_20)
+        } else {
+            listOf(primaryModel)
+        }
 
         // Ventana deslizante de los últimos 6 mensajes
         val recentHistory = history.takeLast(6)
@@ -145,33 +181,41 @@ object GeminiOracleAdvisor {
             put("parts", JSONArray().put(JSONObject().put("text", newQuestion.trim())))
         })
 
-        val requestBody = JSONObject().apply {
-            put("system_instruction", JSONObject().apply {
-                put("parts", JSONArray().put(JSONObject().put("text", systemInstruction)))
-            })
-            put("contents", contentsArray)
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.6)
-                put("maxOutputTokens", 450)
-            })
-        }.toString()
-
-        for (model in candidateModels) {
+        for (i in candidateModels.indices) {
+            val model = candidateModels[i]
+            val isFallback = (i > 0)
             val urlStr = "$ENDPOINT_BASE/$model:generateContent?key=$apiKey"
+
+            val generationConfig = JSONObject().apply {
+                put("temperature", 0.5)
+                put("maxOutputTokens", 750)
+                if (model.contains("2.5")) {
+                    put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
+                }
+            }
+
+            val requestBody = JSONObject().apply {
+                put("system_instruction", JSONObject().apply {
+                    put("parts", JSONArray().put(JSONObject().put("text", systemInstruction)))
+                })
+                put("contents", contentsArray)
+                put("generationConfig", generationConfig)
+            }.toString()
+
+            var conn: HttpURLConnection? = null
             try {
-                val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+                conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     setRequestProperty("Content-Type", "application/json")
                     doOutput = true
-                    connectTimeout = 12_000
-                    readTimeout = 25_000
+                    connectTimeout = 20_000
+                    readTimeout = 45_000
                 }
                 OutputStreamWriter(conn.outputStream, "UTF-8").use { it.write(requestBody) }
 
                 val code = conn.responseCode
                 val stream = if (code == 200) conn.inputStream else (conn.errorStream ?: conn.inputStream)
                 val response = BufferedReader(InputStreamReader(stream, "UTF-8")).readText()
-                conn.disconnect()
 
                 if (code == 200) {
                     val text = JSONObject(response)
@@ -183,32 +227,44 @@ object GeminiOracleAdvisor {
                         .getString("text").trim()
 
                     return@withContext GeminiResult.Success(text)
-                } else if (code == 404) {
-                    continue
-                } else if (code == 429) {
-                    return@withContext GeminiResult.Error("Límite de cuota alcanzado (429). Espera 1 minuto y vuelve a intentarlo.")
-                } else {
-                    val msg = try {
+                } else if (code == 404 || code == 429) {
+                    if (!isFallback && i + 1 < candidateModels.size) {
+                        continue
+                    }
+                    if (code == 429) {
+                        return@withContext GeminiResult.Error("Cuota gratuita temporalmente alcanzada (HTTP 429). Espera 1 minuto.")
+                    } else {
+                        return@withContext GeminiResult.Error("Modelo no disponible (HTTP 404).")
+                    }
+                } else if (code == 400 || code == 403) {
+                    val errorMessage = try {
                         JSONObject(response).getJSONObject("error").getString("message")
-                    } catch (_: Exception) { "Error HTTP $code" }
-                    return@withContext GeminiResult.Error(msg)
+                    } catch (_: Exception) { "Clave no autorizada o parámetros inválidos" }
+                    return@withContext GeminiResult.Error("API Key inválida o restringida (HTTP $code): $errorMessage")
+                } else {
+                    val errorMessage = try {
+                        JSONObject(response).getJSONObject("error").getString("message")
+                    } catch (_: Exception) { "Error de servidor" }
+                    return@withContext GeminiResult.Error("Error HTTP $code: $errorMessage")
                 }
-            } catch (e: UnknownHostException) {
-                return@withContext GeminiResult.Offline
             } catch (e: java.net.SocketTimeoutException) {
-                return@withContext GeminiResult.Error("Tiempo de espera agotado. Inténtalo de nuevo.")
+                return@withContext GeminiResult.Error("Tiempo de espera agotado (45s). Revisa tu señal móvil o prueba nuevamente.")
+            } catch (e: UnknownHostException) {
+                return@withContext GeminiResult.Error("Sin conexión a internet o DNS bloqueado.")
             } catch (e: Exception) {
                 val msg = e.message ?: ""
                 if (msg.contains("Unable to resolve host", ignoreCase = true) ||
                     msg.contains("Network is unreachable", ignoreCase = true) ||
                     msg.contains("Failed to connect", ignoreCase = true)) {
-                    return@withContext GeminiResult.Offline
+                    return@withContext GeminiResult.Error("Sin conexión a internet o DNS bloqueado.")
                 }
-                return@withContext GeminiResult.Error(msg)
+                return@withContext GeminiResult.Error("Error de conexión: $msg")
+            } finally {
+                conn?.disconnect()
             }
         }
 
-        return@withContext GeminiResult.Error("No se pudo conectar con el servicio de Gemini (404)")
+        return@withContext GeminiResult.Error("No se pudo obtener respuesta del Oráculo.")
     }
 
     private fun getPrefs(context: Context): SharedPreferences =

@@ -213,13 +213,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             _isChatLoading.value = true
+            _isGeminiLoading.value = true
+
+            val lottery = _selectedLottery.value
+            val frequencies = dbHelper.getHistoricalFrequencies(lottery)
+            val savedPlays = _savedPlays.value
+            val lastDraw = _drawHistory.value.firstOrNull()
+            val engine = PlanetaryClockEngine(_userProfile.value)
+            val allHours = engine.calculatePlanetaryHours(LocalDate.now())
 
             val contextBundle = HermeticKnowledgeRetriever.buildContextBundle(
-                masterPlayBalls = currentPlay?.masterPlay ?: emptyList(),
-                riskAssessment = currentPlay?.riskAssessment,
+                userProfile = _userProfile.value,
+                oracleResult = currentPlay,
                 currentHour = _currentPlanetaryHour.value,
-                moonInfo = currentPlay?.moonInfo,
-                lastOfficialDraw = _drawHistory.value.firstOrNull()?.winningBalls
+                allPlanetaryHours = allHours,
+                lastOfficialDraw = lastDraw,
+                historicalFrequencies = frequencies,
+                savedPlays = savedPlays
             )
 
             val result = GeminiOracleAdvisor.chatTurn(
@@ -231,7 +241,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             val oracleReplyText = when (result) {
                 is GeminiResult.Success -> result.text
-                is GeminiResult.Offline -> "Modo offline activo. Toca cualquier bolilla de tu jugada maestra para ver sus páginas en los 5 libros locales sin internet."
+                is GeminiResult.Offline -> "Sin conexión a internet o DNS bloqueado."
                 is GeminiResult.NoApiKey -> "La API Key de Google AI Studio no está configurada. Puedes configurarla en el menú Ajustes (arriba a la derecha)."
                 is GeminiResult.Error -> "⚠ ${result.message}"
             }
@@ -245,7 +255,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             dbHelper.saveChatMessage(oracleMsg)
             _chatMessages.value = _chatMessages.value + oracleMsg
+            _geminiResult.value = result
             _isChatLoading.value = false
+            _isGeminiLoading.value = false
         }
     }
 

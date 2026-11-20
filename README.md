@@ -1,16 +1,19 @@
-# Oráculo Loto 5X (v3.0.0)
+# Oráculo Loto 5X (v3.0.1)
 
 > **Aplicación Android Nativa de Predicción Hermética y Estadística para La Tinka (Perú)**  
-> **Versión:** 3.0.0 (Build 7) · **Framework:** Kotlin + Jetpack Compose Material 3  
+> **Versión:** 3.0.1 (Build 8) · **Framework:** Kotlin + Jetpack Compose Material 3  
 > **Operador:** Iván Josseph Chuctaya Páucar (Sicuani, Cusco, Perú)  
 
 ---
 
-## 🌟 Novedades de la Versión 3.0.0
+## 🌟 Novedades de la Versión 3.0.1
 
+* **Corrección de Timeout y Optimización Thinking:** Conectado a Google AI Studio (`gemini-2.5-flash` principal con `thinkingBudget = 0` y respaldo a `gemini-2.0-flash`). Tiempos de espera ampliados a 20s de conexión y 45s de lectura para redes móviles.
+* **Snapshot Completo de Telemetría (~2 KB):** Inyección en `system_instruction` de todo el contexto calculado: perfil natal de Iván, ciclos personales, semáforo, iluminación lunar, ventanas de Sol y Luna restantes hoy, radiografía completa de las 6 bolillas con puntajes y motivos por autor, métricas gaussianas, rueda de 9 bolillas, cooldown del último sorteo oficial, top 5 calientes/frías y backtesting local.
+* **Diagnóstico Preciso de Errores:** Mensajes claros ante timeout, falta de conexión, cuota 429 y clave inválida o restringida (HTTP 400/403).
+* **Lista Blanca Estricta de Citas PDF:** Corrección de citas de Glynis McCants a `[PDF:mccants:4]` y `[PDF:mccants:6]`.
 * **Pantalla Única Minimalista:** Navegación unificada que elimina la barra inferior de pestañas y centra la experiencia en un asistente conversacional fluido.
 * **Hero Card Auto-Colapsable:** Muestra las 6 bolillas más probables de La Tinka, semáforo del día, fase lunar y hora planetaria en Cusco. Se contrae automáticamente a 1 sola línea al escribir o hacer scroll, dejando libre más del 80% de la pantalla para el chat.
-* **Chatbot Hermético Multi-Turno:** Conectado a Google AI Studio (`gemini-2.5-flash` con respaldo automático a `gemini-3.8-flash` y `gemini-2.5-pro`) con ventana deslizante de memoria (últimos 6 mensajes).
 * **RAG Local con Citas PDF Clickeables:** Genera chips interactivos de libros (`📖 Cheiro · Pág. 82`, `📖 Millman · Pág. 144`) con lista blanca estricta anti-alucinaciones, permitiendo abrir la página exacta del tratado en el visor nativo sin consumir internet.
 * **Auto-Sincronización de La Tinka:** Workflow de GitHub Actions que corre cada miércoles y domingo a las 23:15 hora Perú (`cron: '15 4 * * 1,4'`) para registrar los sorteos oficiales en `data/tinka_history.json`. La aplicación Android descarga este JSON (~2 KB) y aplica automáticamente el filtro de enfriamiento (-15.0 pts al último sorteo) y backtesting.
 
