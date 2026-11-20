@@ -149,7 +149,7 @@ object HermeticKnowledgeRetriever {
         val cutoffSeconds = 21 * 3600 + 50 * 60 // 21:50 cierre La Tinka
         val currentSec = currentTime.toSecondOfDay()
         val remainingFavorable = favorableHours.filter {
-            it.endSecond > currentSec && it.startSecond < cutoffSeconds
+            it.endTime.toSecondOfDay() > currentSec && it.startTime.toSecondOfDay() < cutoffSeconds
         }
         val ventanasStr = if (remainingFavorable.isNotEmpty()) {
             remainingFavorable.joinToString("; ") { "${it.planet.spanishName} (${it.formattedInterval})" }

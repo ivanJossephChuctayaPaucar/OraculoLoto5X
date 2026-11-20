@@ -3,10 +3,6 @@ name: Build Android APK (OraculoLoto5X)
 on:
   push:
     branches: [ "main", "master" ]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [ "main", "master" ]
   workflow_dispatch:
 
 permissions:
@@ -14,39 +10,43 @@ permissions:
 
 jobs:
   build:
-    name: Compilar APK Offline
+    name: Compilar APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Descargar código fuente
         uses: actions/checkout@v4
 
-      - name: Configurar Java JDK 17
+      - name: Configurar Java JDK 17 con Caché Nativa
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v3
+          cache: 'gradle'
 
       - name: Dar permisos de ejecución a gradlew
         run: chmod +x ./gradlew
 
-      - name: Compilar APK en modo Debug
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+      - name: Compilar APK en modo Debug Ultra-Rápido
+        run: ./gradlew assembleDebug --no-daemon --parallel --build-cache
 
-      - name: Subir APK como Artefacto descargable
+      - name: Subir APK a Artefactos
         uses: actions/upload-artifact@v4
         with:
           name: OraculoLoto5X-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 30
+          retention-days: 14
+          compression-level: 1
 
-      - name: Publicar Release (si es un tag v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publicar Release Directo (Descarga directa de APK)
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: latest
+          name: "OraculoLoto5X v3.0.1 (Último APK)"
+          body: "Compilación automática más reciente desde GitHub Actions. Descarga directa del APK sin descomprimir."
           files: app/build/outputs/apk/debug/*.apk
+          prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
