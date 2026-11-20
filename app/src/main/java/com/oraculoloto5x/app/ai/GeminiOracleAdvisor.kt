@@ -58,12 +58,12 @@ object GeminiOracleAdvisor {
     }
 
     fun getSelectedModel(context: Context): String {
-        val model = getPrefs(context).getString(KEY_MODEL, MODEL_FLASH_38) ?: MODEL_FLASH_38
+        val model = getPrefs(context).getString(KEY_MODEL, MODEL_FLASH_35) ?: MODEL_FLASH_35
         return when (model) {
-            MODEL_FLASH_38, "gemini-3.8-flash" -> MODEL_FLASH_38
             MODEL_FLASH_35, "gemini-3.5-flash" -> MODEL_FLASH_35
             MODEL_FLASH_LATEST, "gemini-flash-latest" -> MODEL_FLASH_LATEST
-            else -> MODEL_FLASH_38
+            MODEL_FLASH_38, "gemini-3.8-flash" -> MODEL_FLASH_38
+            else -> MODEL_FLASH_35
         }
     }
 
@@ -72,13 +72,13 @@ object GeminiOracleAdvisor {
     }
 
     /** Prueba rápida de API Key con un payload mínimo */
-    suspend fun testApiKey(apiKey: String, model: String = MODEL_FLASH_38): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun testApiKey(apiKey: String, model: String = MODEL_FLASH_35): Result<String> = withContext(Dispatchers.IO) {
         val testModel = when (model) {
-            MODEL_FLASH_35 -> MODEL_FLASH_35
+            MODEL_FLASH_38 -> MODEL_FLASH_38
             MODEL_FLASH_LATEST -> MODEL_FLASH_LATEST
-            else -> MODEL_FLASH_38
+            else -> MODEL_FLASH_35
         }
-        val candidateModels = listOf(testModel, MODEL_FLASH_35, MODEL_FLASH_LATEST).distinct()
+        val candidateModels = listOf(testModel, MODEL_FLASH_35, MODEL_FLASH_LATEST, MODEL_FLASH_38).distinct()
 
         for (i in candidateModels.indices) {
             val m = candidateModels[i]
@@ -102,7 +102,7 @@ object GeminiOracleAdvisor {
                     setRequestProperty("Content-Type", "application/json")
                     doOutput = true
                     connectTimeout = 20_000
-                    readTimeout = 45_000
+                    readTimeout = 60_000
                 }
                 OutputStreamWriter(conn.outputStream, "UTF-8").use { it.write(body) }
                 val code = conn.responseCode
@@ -164,7 +164,7 @@ object GeminiOracleAdvisor {
         if (apiKey.isBlank()) return@withContext GeminiResult.NoApiKey
 
         val primaryModel = getSelectedModel(context)
-        val candidateModels = listOf(primaryModel, MODEL_FLASH_35, MODEL_FLASH_LATEST).distinct()
+        val candidateModels = listOf(primaryModel, MODEL_FLASH_35, MODEL_FLASH_LATEST, MODEL_FLASH_38).distinct()
 
         // Ventana deslizante de los últimos 6 mensajes
         val recentHistory = history.takeLast(6)
@@ -191,7 +191,7 @@ object GeminiOracleAdvisor {
 
             val generationConfig = JSONObject().apply {
                 put("temperature", 0.6)
-                put("maxOutputTokens", 2048)
+                put("maxOutputTokens", 4096)
             }
 
             val requestBody = JSONObject().apply {
@@ -209,7 +209,7 @@ object GeminiOracleAdvisor {
                     setRequestProperty("Content-Type", "application/json")
                     doOutput = true
                     connectTimeout = 20_000
-                    readTimeout = 45_000
+                    readTimeout = 60_000
                 }
                 OutputStreamWriter(conn.outputStream, "UTF-8").use { it.write(requestBody) }
 

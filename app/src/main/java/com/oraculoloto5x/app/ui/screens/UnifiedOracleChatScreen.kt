@@ -90,6 +90,9 @@ fun UnifiedOracleChatScreen(
     LaunchedEffect(chatMessages.size, isChatLoading) {
         val totalItems = chatMessages.size + (if (isChatLoading) 1 else 0)
         if (totalItems > 0) {
+            if (chatMessages.isNotEmpty()) {
+                isHeroExpanded = false
+            }
             listState.animateScrollToItem(totalItems - 1)
         }
     }
@@ -458,6 +461,7 @@ fun UnifiedOracleChatScreen(
             for (suggestion in quickSuggestions) {
                 SuggestionChip(
                     onClick = {
+                        isHeroExpanded = false
                         focusManager.clearFocus()
                         viewModel.sendChatMessage(suggestion)
                     },
@@ -518,6 +522,7 @@ fun UnifiedOracleChatScreen(
                             val text = inputText.trim()
                             if (text.isNotEmpty() && !isChatLoading) {
                                 inputText = ""
+                                isHeroExpanded = false
                                 focusManager.clearFocus()
                                 viewModel.sendChatMessage(text)
                             }
@@ -533,6 +538,7 @@ fun UnifiedOracleChatScreen(
                         val text = inputText.trim()
                         if (text.isNotEmpty() && !isChatLoading) {
                             inputText = ""
+                            isHeroExpanded = false
                             focusManager.clearFocus()
                             viewModel.sendChatMessage(text)
                         }
