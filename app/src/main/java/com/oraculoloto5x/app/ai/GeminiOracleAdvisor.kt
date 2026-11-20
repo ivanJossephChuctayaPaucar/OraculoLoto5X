@@ -190,8 +190,8 @@ object GeminiOracleAdvisor {
             val urlStr = "$ENDPOINT_BASE/$model:generateContent?key=$apiKey"
 
             val generationConfig = JSONObject().apply {
-                put("temperature", 0.5)
-                put("maxOutputTokens", 750)
+                put("temperature", 0.6)
+                put("maxOutputTokens", 2048)
             }
 
             val requestBody = JSONObject().apply {
