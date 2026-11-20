@@ -86,6 +86,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isChatLoading = MutableStateFlow(false)
     val isChatLoading: StateFlow<Boolean> = _isChatLoading.asStateFlow()
 
+    // Compatibilidad para ProfileSettingsDialog y TodayOracleScreen
+    private val _geminiResult = MutableStateFlow<GeminiResult?>(null)
+    val geminiResult: StateFlow<GeminiResult?> = _geminiResult.asStateFlow()
+
+    private val _isGeminiLoading = MutableStateFlow(false)
+    val isGeminiLoading: StateFlow<Boolean> = _isGeminiLoading.asStateFlow()
+
     // ── Online Sync State ─────────────────────────────────────────────────────
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
@@ -330,5 +337,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun get24PlanetaryHours(date: LocalDate): List<PlanetaryHour> {
         val engine = PlanetaryClockEngine(_userProfile.value)
         return engine.calculatePlanetaryHours(date)
+    }
+
+    // Métodos de compatibilidad para ProfileSettingsDialog, FiveBooks y pantallas auxiliares
+    fun testGeminiApiKey(apiKey: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val res = GeminiOracleAdvisor.testApiKey(apiKey)
+            res.fold(
+                onSuccess = { onResult(true, it) },
+                onFailure = { onResult(false, it.message ?: "Error al conectar") }
+            )
+        }
+    }
+
+    fun clearGeminiResult() {
+        _geminiResult.value = null
+    }
+
+    fun refreshPdfCount() {
+        viewModelScope.launch {
+            _pdfBooksLinked.value = com.oraculoloto5x.app.pdf.NativePdfManager.countFoundBooks(getApplication())
+        }
+    }
+
+    fun insertOfficialDraw(lottery: LotteryType, date: LocalDate, balls: List<Int>) {
+        dbHelper.insertDrawResult(lottery, date, balls)
+        loadData()
     }
 }

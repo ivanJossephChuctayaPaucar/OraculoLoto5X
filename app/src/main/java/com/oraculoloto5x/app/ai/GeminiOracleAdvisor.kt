@@ -33,13 +33,12 @@ object GeminiOracleAdvisor {
     private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SjBla0RZNTR4Y3RRRW9YUDBac1NVcHZsTTNST04zMVIwTmg5dzVpMzdaU3c="
 
     // Models supported by Google AI Studio
-    // Prioridad: gemini-2.5-flash (respaldo gemini-3.8-flash, gemini-flash-latest, gemini-2.5-pro)
+    const val MODEL_FLASH = "gemini-3.8-flash"
     const val MODEL_FLASH_25 = "gemini-2.5-flash"
     const val MODEL_PRO_25 = "gemini-2.5-pro"
-    const val MODEL_FLASH_38 = "gemini-3.8-flash"
     const val MODEL_FLASH_LATEST = "gemini-flash-latest"
 
-    val FALLBACK_MODELS = listOf(MODEL_FLASH_25, MODEL_FLASH_38, MODEL_FLASH_LATEST, MODEL_PRO_25)
+    val FALLBACK_MODELS = listOf(MODEL_FLASH_25, MODEL_FLASH, MODEL_FLASH_LATEST, MODEL_PRO_25)
 
     private const val ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
