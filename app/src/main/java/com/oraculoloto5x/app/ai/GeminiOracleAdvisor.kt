@@ -31,10 +31,15 @@ object GeminiOracleAdvisor {
     private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SjBla0RZNTR4Y3RRRW9YUDBac1NVcHZsTTNST04zMVIwTmg5dzVpMzdaU3c="
 
     // Models supported by Google AI Studio
-    const val MODEL_FLASH_25 = "gemini-2.5-flash"
-    const val MODEL_FLASH_20 = "gemini-2.0-flash"
+    const val MODEL_FLASH_38 = "gemini-3.8-flash"
+    const val MODEL_FLASH_35 = "gemini-3.5-flash"
+    const val MODEL_FLASH_LATEST = "gemini-flash-latest"
 
-    val FALLBACK_MODELS = listOf(MODEL_FLASH_20)
+    // Backward compatibility aliases
+    const val MODEL_FLASH_25 = MODEL_FLASH_38
+    const val MODEL_FLASH_20 = MODEL_FLASH_35
+
+    val FALLBACK_MODELS = listOf(MODEL_FLASH_35, MODEL_FLASH_LATEST)
 
     private const val ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -53,8 +58,13 @@ object GeminiOracleAdvisor {
     }
 
     fun getSelectedModel(context: Context): String {
-        val model = getPrefs(context).getString(KEY_MODEL, MODEL_FLASH_25) ?: MODEL_FLASH_25
-        return if (model == MODEL_FLASH_25 || model == MODEL_FLASH_20) model else MODEL_FLASH_25
+        val model = getPrefs(context).getString(KEY_MODEL, MODEL_FLASH_38) ?: MODEL_FLASH_38
+        return when (model) {
+            MODEL_FLASH_38, "gemini-3.8-flash" -> MODEL_FLASH_38
+            MODEL_FLASH_35, "gemini-3.5-flash" -> MODEL_FLASH_35
+            MODEL_FLASH_LATEST, "gemini-flash-latest" -> MODEL_FLASH_LATEST
+            else -> MODEL_FLASH_38
+        }
     }
 
     fun saveSelectedModel(context: Context, model: String) {
@@ -62,23 +72,20 @@ object GeminiOracleAdvisor {
     }
 
     /** Prueba rápida de API Key con un payload mínimo */
-    suspend fun testApiKey(apiKey: String, model: String = MODEL_FLASH_25): Result<String> = withContext(Dispatchers.IO) {
-        val testModel = if (model == MODEL_FLASH_25 || model == MODEL_FLASH_20) model else MODEL_FLASH_25
-        val candidateModels = if (testModel == MODEL_FLASH_25) {
-            listOf(MODEL_FLASH_25, MODEL_FLASH_20)
-        } else {
-            listOf(testModel)
+    suspend fun testApiKey(apiKey: String, model: String = MODEL_FLASH_38): Result<String> = withContext(Dispatchers.IO) {
+        val testModel = when (model) {
+            MODEL_FLASH_35 -> MODEL_FLASH_35
+            MODEL_FLASH_LATEST -> MODEL_FLASH_LATEST
+            else -> MODEL_FLASH_38
         }
+        val candidateModels = listOf(testModel, MODEL_FLASH_35, MODEL_FLASH_LATEST).distinct()
 
         for (i in candidateModels.indices) {
             val m = candidateModels[i]
             val isFallback = (i > 0)
             val urlStr = "$ENDPOINT_BASE/$m:generateContent?key=$apiKey"
             val generationConfig = JSONObject().apply {
-                put("maxOutputTokens", 10)
-                if (m.contains("2.5")) {
-                    put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
-                }
+                put("maxOutputTokens", 15)
             }
             val body = JSONObject().apply {
                 put("contents", JSONArray().put(JSONObject().apply {
@@ -157,11 +164,7 @@ object GeminiOracleAdvisor {
         if (apiKey.isBlank()) return@withContext GeminiResult.NoApiKey
 
         val primaryModel = getSelectedModel(context)
-        val candidateModels = if (primaryModel == MODEL_FLASH_25) {
-            listOf(MODEL_FLASH_25, MODEL_FLASH_20)
-        } else {
-            listOf(primaryModel)
-        }
+        val candidateModels = listOf(primaryModel, MODEL_FLASH_35, MODEL_FLASH_LATEST).distinct()
 
         // Ventana deslizante de los últimos 6 mensajes
         val recentHistory = history.takeLast(6)
@@ -189,9 +192,6 @@ object GeminiOracleAdvisor {
             val generationConfig = JSONObject().apply {
                 put("temperature", 0.5)
                 put("maxOutputTokens", 750)
-                if (model.contains("2.5")) {
-                    put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
-                }
             }
 
             val requestBody = JSONObject().apply {
