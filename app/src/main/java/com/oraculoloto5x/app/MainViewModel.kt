@@ -354,6 +354,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _geminiResult.value = null
     }
 
+    fun consultGemini(customQuestion: String? = null) {
+        val q = if (customQuestion.isNullOrBlank()) "Analiza mi jugada de hoy y el semáforo" else customQuestion.trim()
+        sendChatMessage(q)
+    }
+
     fun refreshPdfCount() {
         viewModelScope.launch {
             _pdfBooksLinked.value = com.oraculoloto5x.app.pdf.NativePdfManager.countFoundBooks(getApplication())

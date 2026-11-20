@@ -13,6 +13,11 @@ data class HermeticContextBundle(
     val relevantCitations: List<BookCitation>
 )
 
+data class ParsedCitationsResult(
+    val cleanedText: String,
+    val citations: List<BookCitation>
+)
+
 object HermeticKnowledgeRetriever {
 
     // Lista blanca cerrada de etiquetas válidas para evitar alucinaciones
@@ -126,7 +131,7 @@ REGLAS ESTRICTAS DE RESPUESTA:
      * Extrae las etiquetas válidas y limpia el texto para visualización,
      * retornando el texto limpio y la lista de citas reales.
      */
-    fun parseCitationsFromText(rawText: String): Pair<String, List<BookCitation>> {
+    fun parseCitationsFromText(rawText: String): ParsedCitationsResult {
         val matcher = PDF_TAG_PATTERN.matcher(rawText)
         val citations = mutableListOf<BookCitation>()
 
@@ -141,6 +146,6 @@ REGLAS ESTRICTAS DE RESPUESTA:
 
         // Limpiar las etiquetas [PDF:...] del texto visible para que se lean de forma limpia
         val cleanedText = matcher.replaceAll("").replace("  ", " ").trim()
-        return Pair(cleanedText, citations)
+        return ParsedCitationsResult(cleanedText, citations)
     }
 }

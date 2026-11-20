@@ -34,9 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.oraculoloto5x.app.MainViewModel
 import com.oraculoloto5x.app.ai.HermeticKnowledgeRetriever
-import com.oraculoloto5x.app.data.models.BookCitation
+import com.oraculoloto5x.app.ai.ParsedCitationsResult
 import com.oraculoloto5x.app.data.models.ChatMessage
 import com.oraculoloto5x.app.engine.RiskLevel
+import com.oraculoloto5x.app.pdf.BookCitation
 import com.oraculoloto5x.app.pdf.PdfPageViewerDialog
 import com.oraculoloto5x.app.ui.components.BallDetailBottomSheet
 import com.oraculoloto5x.app.ui.components.LotteryBall
@@ -216,7 +217,7 @@ fun UnifiedOracleChatScreen(
                             )
                             Text(text = "  ·  ", color = TextSecondary, fontSize = 11.sp)
                             Text(
-                                text = "🪐 ${currentHour.planet.displayName} (${currentHour.formattedInterval})",
+                                text = "🪐 ${currentHour.planet.spanishName} (${currentHour.formattedInterval})",
                                 color = TextPrimary,
                                 fontSize = 11.sp
                             )
@@ -431,7 +432,7 @@ fun UnifiedOracleChatScreen(
                     items(chatMessages) { message ->
                         ChatMessageItem(
                             message = message,
-                            onOpenCitation = { citation ->
+                            onOpenCitation = { citation: BookCitation ->
                                 viewModel.openPdfCitation(citation)
                             }
                         )
