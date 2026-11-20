@@ -5,11 +5,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.oraculoloto5x.app.ai.GeminiOracleAdvisor
 import com.oraculoloto5x.app.ai.GeminiResult
+import com.oraculoloto5x.app.ai.HermeticKnowledgeRetriever
 import com.oraculoloto5x.app.data.knowledge.NumerologyKnowledgeBase
 import com.oraculoloto5x.app.data.local.LotoDatabaseHelper
 import com.oraculoloto5x.app.data.models.*
+import com.oraculoloto5x.app.data.sync.SyncResult
+import com.oraculoloto5x.app.data.sync.TinkaOnlineSyncService
 import com.oraculoloto5x.app.engine.*
 import com.oraculoloto5x.app.notification.PlanetaryAlarmScheduler
+import com.oraculoloto5x.app.pdf.BookCitation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +24,7 @@ import java.time.LocalTime
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val dbHelper = LotoDatabaseHelper(application)
+    val dbHelper = LotoDatabaseHelper(application)
 
     private val _userProfile = MutableStateFlow(dbHelper.getUserProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
@@ -75,20 +79,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _hasPlaySavedToday = MutableStateFlow(false)
     val hasPlaySavedToday: StateFlow<Boolean> = _hasPlaySavedToday.asStateFlow()
 
-    // ── Gemini AI state ───────────────────────────────────────────────────────
-    private val _geminiResult = MutableStateFlow<GeminiResult?>(null)
-    val geminiResult: StateFlow<GeminiResult?> = _geminiResult.asStateFlow()
+    // ── Chat & Gemini AI State ────────────────────────────────────────────────
+    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
-    private val _isGeminiLoading = MutableStateFlow(false)
-    val isGeminiLoading: StateFlow<Boolean> = _isGeminiLoading.asStateFlow()
+    private val _isChatLoading = MutableStateFlow(false)
+    val isChatLoading: StateFlow<Boolean> = _isChatLoading.asStateFlow()
 
-    // ── PDF viewer state ──────────────────────────────────────────────────────
+    // ── Online Sync State ─────────────────────────────────────────────────────
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _syncMessage = MutableStateFlow<String?>(null)
+    val syncMessage: StateFlow<String?> = _syncMessage.asStateFlow()
+
+    // ── PDF Citation Direct Viewer ────────────────────────────────────────────
+    private val _activePdfCitation = MutableStateFlow<BookCitation?>(null)
+    val activePdfCitation: StateFlow<BookCitation?> = _activePdfCitation.asStateFlow()
+
     private val _pdfBooksLinked = MutableStateFlow(0)
     val pdfBooksLinked: StateFlow<Int> = _pdfBooksLinked.asStateFlow()
 
     init {
         loadData()
+        loadChatHistory()
         generateOraclePlay()
+
+        // Sincronización silenciosa en segundo plano al iniciar si hay internet
+        viewModelScope.launch {
+            syncTinkaDrawsOnline(showFeedback = false)
+        }
     }
 
     fun loadData() {
@@ -96,6 +116,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _savedPlays.value = dbHelper.getSavedPlays(lottery)
         _drawHistory.value = dbHelper.getDrawHistory(lottery)
         refreshPlanetaryClock()
+    }
+
+    fun loadChatHistory() {
+        _chatMessages.value = dbHelper.getChatHistory(50)
     }
 
     fun refreshPlanetaryClock(date: LocalDate = LocalDate.now(), time: LocalTime = LocalTime.now()) {
@@ -134,7 +158,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             _oracleResult.value = result
 
-            // Seleccionar por defecto la primera bolilla de la jugada maestra para análisis
             if (result.masterPlay.isNotEmpty()) {
                 val firstBall = result.masterPlay.first()
                 _selectedBallForAnalysis.value = result.allBallsAnalysis.find { it.ballNumber == firstBall }
@@ -156,49 +179,114 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _isBallSheetOpen.value = false
     }
 
-    fun consultGemini(customQuestion: String? = null) {
-        val result = _oracleResult.value ?: return
+    fun openPdfCitation(citation: BookCitation) {
+        _activePdfCitation.value = citation
+    }
+
+    fun closePdfCitation() {
+        _activePdfCitation.value = null
+    }
+
+    // ── Chat Conversacional Inteligente ───────────────────────────────────────
+
+    fun sendChatMessage(question: String) {
+        if (question.isBlank() || _isChatLoading.value) return
+        val currentPlay = _oracleResult.value
+
+        val userMsg = ChatMessage(
+            timestamp = System.currentTimeMillis(),
+            sender = "user",
+            text = question.trim(),
+            relatedBalls = currentPlay?.masterPlay?.joinToString("-") ?: ""
+        )
+
+        // Guardar de inmediato mensaje de usuario en memoria y DB
+        dbHelper.saveChatMessage(userMsg)
+        _chatMessages.value = _chatMessages.value + userMsg
+
         viewModelScope.launch {
-            _isGeminiLoading.value = true
-            _geminiResult.value = null
-            val profile = _userProfile.value
-            val hour = _currentPlanetaryHour.value
-            val nextWindow = _nextFavorableWindow.value
-            val semaphore = result.riskAssessment.riskLevel.name
-            val gemRes = GeminiOracleAdvisor.consult(
+            _isChatLoading.value = true
+
+            val contextBundle = HermeticKnowledgeRetriever.buildContextBundle(
+                masterPlayBalls = currentPlay?.masterPlay ?: emptyList(),
+                riskAssessment = currentPlay?.riskAssessment,
+                currentHour = _currentPlanetaryHour.value,
+                moonInfo = currentPlay?.moonInfo,
+                lastOfficialDraw = _drawHistory.value.firstOrNull()?.winningBalls
+            )
+
+            val result = GeminiOracleAdvisor.chatTurn(
                 context = getApplication(),
-                dbHelper = dbHelper,
-                lotteryName = result.lotteryType.displayName,
-                semaphore = semaphore,
-                currentPlanetaryHour = "${hour.planet.spanishName} (${hour.startTime}–${hour.endTime})",
-                nextFavorableWindow = "${nextWindow.first.planet.spanishName} en ${nextWindow.second.toMinutes()}min",
-                moonToday = result.moonInfo.displaySummary,
-                masterPlayBalls = result.masterPlay,
-                userQuestion = customQuestion
+                systemInstruction = contextBundle.systemInstruction,
+                history = _chatMessages.value.dropLast(1), // Historial previo excluyendo la pregunta actual
+                newQuestion = question.trim()
             )
-            _geminiResult.value = gemRes
-            _isGeminiLoading.value = false
-        }
-    }
 
-    fun testGeminiApiKey(apiKey: String, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            val res = GeminiOracleAdvisor.testApiKey(apiKey)
-            res.fold(
-                onSuccess = { onResult(true, it) },
-                onFailure = { onResult(false, it.message ?: "Error al conectar") }
+            val oracleReplyText = when (result) {
+                is GeminiResult.Success -> result.text
+                is GeminiResult.Offline -> "Modo offline activo. Toca cualquier bolilla de tu jugada maestra para ver sus páginas en los 5 libros locales sin internet."
+                is GeminiResult.NoApiKey -> "La API Key de Google AI Studio no está configurada. Puedes configurarla en el menú Ajustes (arriba a la derecha)."
+                is GeminiResult.Error -> "⚠ ${result.message}"
+            }
+
+            val oracleMsg = ChatMessage(
+                timestamp = System.currentTimeMillis(),
+                sender = "oracle",
+                text = oracleReplyText,
+                relatedBalls = currentPlay?.masterPlay?.joinToString("-") ?: ""
             )
+
+            dbHelper.saveChatMessage(oracleMsg)
+            _chatMessages.value = _chatMessages.value + oracleMsg
+            _isChatLoading.value = false
         }
     }
 
-    fun clearGeminiResult() {
-        _geminiResult.value = null
+    fun clearChatHistory() {
+        dbHelper.clearChatHistory()
+        _chatMessages.value = emptyList()
     }
 
-    fun refreshPdfCount() {
+    // ── Sincronización Online de La Tinka ──────────────────────────────────────
+
+    fun syncTinkaDrawsOnline(showFeedback: Boolean = true) {
         viewModelScope.launch {
-            _pdfBooksLinked.value = com.oraculoloto5x.app.pdf.NativePdfManager.countFoundBooks(getApplication())
+            _isSyncing.value = true
+            if (showFeedback) _syncMessage.value = "Sincronizando sorteos..."
+
+            val res = TinkaOnlineSyncService.syncTinkaHistory(getApplication(), dbHelper)
+
+            when (res) {
+                is SyncResult.Success -> {
+                    loadData()
+                    generateOraclePlay() // Recalcular con nuevo cooldown aplicado
+                    if (showFeedback) {
+                        _syncMessage.value = "✓ ¡${res.newDrawsCount} sorteo(s) nuevo(s) sincronizado(s) hasta ${res.latestDate}!"
+                    }
+                }
+                is SyncResult.AlreadyUpToDate -> {
+                    if (showFeedback) {
+                        _syncMessage.value = "✓ Historial al día con el último sorteo oficial."
+                    }
+                }
+                is SyncResult.Offline -> {
+                    if (showFeedback) {
+                        _syncMessage.value = "Sin conexión. Usando sorteos guardados offline."
+                    }
+                }
+                is SyncResult.Error -> {
+                    if (showFeedback) {
+                        _syncMessage.value = "Aviso sync: ${res.message}"
+                    }
+                }
+            }
+
+            _isSyncing.value = false
         }
+    }
+
+    fun clearSyncMessage() {
+        _syncMessage.value = null
     }
 
     fun saveCurrentPlay() {
@@ -217,11 +305,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         dbHelper.savePlay(play)
         _hasPlaySavedToday.value = true
-        loadData()
-    }
-
-    fun insertOfficialDraw(lottery: LotteryType, date: LocalDate, balls: List<Int>) {
-        dbHelper.insertDrawResult(lottery, date, balls)
         loadData()
     }
 

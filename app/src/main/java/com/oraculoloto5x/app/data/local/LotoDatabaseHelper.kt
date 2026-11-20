@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.oraculoloto5x.app.data.models.ChatMessage
 import com.oraculoloto5x.app.data.models.DrawResult
 import com.oraculoloto5x.app.data.models.LotteryType
 import com.oraculoloto5x.app.data.models.SavedPlay
@@ -20,7 +21,15 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "oraculo_loto_5x.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
+
+        // Chat Messages
+        const val TABLE_CHAT = "chat_messages"
+        const val COL_CHAT_ID = "id"
+        const val COL_CHAT_TIMESTAMP = "timestamp"
+        const val COL_CHAT_SENDER = "sender"
+        const val COL_CHAT_TEXT = "text"
+        const val COL_CHAT_BALLS = "related_balls"
 
         // AI Oracle Cache
         const val TABLE_AI_CACHE = "ai_oracle_cache"
@@ -105,6 +114,7 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
         db.execSQL(createJugadasTable)
         db.execSQL(createPerfilTable)
         createAiCacheTable(db)
+        createChatTable(db)
 
         // Semilla: Perfil por defecto de Iván Josseph
         val userValues = ContentValues().apply {
@@ -129,6 +139,21 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
         if (oldVersion < 2) {
             createAiCacheTable(db)
         }
+        if (oldVersion < 3) {
+            createChatTable(db)
+        }
+    }
+
+    private fun createChatTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS $TABLE_CHAT (
+                $COL_CHAT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COL_CHAT_TIMESTAMP INTEGER NOT NULL,
+                $COL_CHAT_SENDER TEXT NOT NULL,
+                $COL_CHAT_TEXT TEXT NOT NULL,
+                $COL_CHAT_BALLS TEXT NOT NULL
+            );
+        """.trimIndent())
     }
 
     private fun createAiCacheTable(db: SQLiteDatabase) {
@@ -458,5 +483,48 @@ class LotoDatabaseHelper(context: Context) : SQLiteOpenHelper(
             put("timestamp", System.currentTimeMillis())
         }
         db.insertWithOnConflict(TABLE_AI_CACHE, null, values, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    // ── Chat Messages Persistence ─────────────────────────────────────────────
+
+    fun saveChatMessage(message: ChatMessage): Long {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COL_CHAT_TIMESTAMP, message.timestamp)
+            put(COL_CHAT_SENDER, message.sender)
+            put(COL_CHAT_TEXT, message.text)
+            put(COL_CHAT_BALLS, message.relatedBalls)
+        }
+        return db.insert(TABLE_CHAT, null, values)
+    }
+
+    fun getChatHistory(limit: Int = 50): List<ChatMessage> {
+        val db = readableDatabase
+        val list = mutableListOf<ChatMessage>()
+        val cursor = db.query(
+            TABLE_CHAT,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "$COL_CHAT_TIMESTAMP ASC",
+            limit.toString()
+        )
+        while (cursor.moveToNext()) {
+            val id = cursor.getLong(cursor.getColumnIndexOrThrow(COL_CHAT_ID))
+            val ts = cursor.getLong(cursor.getColumnIndexOrThrow(COL_CHAT_TIMESTAMP))
+            val sender = cursor.getString(cursor.getColumnIndexOrThrow(COL_CHAT_SENDER))
+            val text = cursor.getString(cursor.getColumnIndexOrThrow(COL_CHAT_TEXT))
+            val balls = cursor.getString(cursor.getColumnIndexOrThrow(COL_CHAT_BALLS))
+            list.add(ChatMessage(id = id, timestamp = ts, sender = sender, text = text, relatedBalls = balls))
+        }
+        cursor.close()
+        return list
+    }
+
+    fun clearChatHistory() {
+        val db = writableDatabase
+        db.delete(TABLE_CHAT, null, null)
     }
 }

@@ -1,0 +1,41 @@
+name: Sincronizar Sorteos La Tinka (Auto-Sync)
+
+on:
+  schedule:
+    # 04:15 UTC jueves y lunes = 23:15 hora Perú de miércoles y domingo (post-sorteo)
+    - cron: '15 4 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sincronizar Resultados La Tinka
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Ejecutar script de actualización
+        run: |
+          chmod +x scripts/fetch_tinka.py
+          python scripts/fetch_tinka.py
+
+      - name: Confirmar y subir cambios a GitHub
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Sync"
+          git add data/tinka_history.json
+          if git diff --staged --quiet; then
+            echo "Sin cambios en el historial de sorteos."
+          else
+            git commit -m "chore(sync): Actualización automática resultados La Tinka [skip ci]"
+            git push origin main
+          fi

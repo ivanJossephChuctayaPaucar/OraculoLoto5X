@@ -11,8 +11,8 @@ android {
         applicationId = "com.oraculoloto5x.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "2.1.3"
+        versionCode = 7
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
