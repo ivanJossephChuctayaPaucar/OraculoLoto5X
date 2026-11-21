@@ -39,7 +39,8 @@ class LotteryFusionEngine(
     private val userProfile: UserProfile,
     private val historicalFrequencies: Map<Int, Int> = emptyMap(),
     private val lastOfficialDrawBalls: List<Int> = emptyList(),
-    private val natalAstro: NatalAstronomicalProfile = NatalAstronomicalProfile.DEFAULT
+    private val natalAstro: NatalAstronomicalProfile = NatalAstronomicalProfile.DEFAULT,
+    private val weightAdjustments: Map<Int, Double> = emptyMap()
 ) {
 
     /**
@@ -173,7 +174,9 @@ class LotteryFusionEngine(
 
         // Curva de suavizado: evita monopolización de las mismas bolillas bonificadas
         val adjustedWeights = ballAnalyses.associate {
-            it.ballNumber to (1.0 + (it.compositeScore.coerceAtLeast(0.0) / 80.0))
+            val baseWeight = 1.0 + (it.compositeScore.coerceAtLeast(0.0) / 80.0)
+            val statAdjustment = weightAdjustments[it.ballNumber] ?: 1.0
+            it.ballNumber to (baseWeight * statAdjustment)
         }
 
         fun pickWeightedBall(available: Set<Int>): Int {

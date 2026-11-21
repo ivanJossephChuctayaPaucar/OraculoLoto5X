@@ -372,16 +372,16 @@ fun ProfileSettingsDialog(
                                 modifier = Modifier.weight(1.3f)
                             )
                             FilterChip(
-                                selected = selectedModel == GeminiOracleAdvisor.MODEL_FLASH_38,
-                                onClick = { selectedModel = GeminiOracleAdvisor.MODEL_FLASH_38 },
-                                label = { Text("gemini-3.8-flash (Alternativo)", fontSize = 10.sp) },
+                                selected = selectedModel == GeminiOracleAdvisor.MODEL_FLASH_LATEST,
+                                onClick = { selectedModel = GeminiOracleAdvisor.MODEL_FLASH_LATEST },
+                                label = { Text("gemini-flash-latest (Alternativo)", fontSize = 10.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = GoldPrimary,
                                     selectedLabelColor = DarkBackground,
                                     containerColor = DarkSurfaceVariant,
                                     labelColor = TextSecondary
                                 ),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1.3f)
                             )
                         }
                     }

@@ -152,10 +152,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val lottery = _selectedLottery.value
             val frequencies = dbHelper.getHistoricalFrequencies(lottery)
             val lastDraw: List<Int> = _drawHistory.value.firstOrNull()?.winningBalls ?: emptyList()
+            val draws = dbHelper.getDrawHistory(lottery)
+            val statsEngine = StatisticsEngine.fromDraws(draws)
+            val weightAdjustments = statsEngine.ballWeightAdjustments(lottery.maxBallNumber)
             val fusionEngine = LotteryFusionEngine(
                 userProfile = _userProfile.value,
                 historicalFrequencies = frequencies,
-                lastOfficialDrawBalls = lastDraw
+                lastOfficialDrawBalls = lastDraw,
+                weightAdjustments = weightAdjustments
             )
 
             val result = fusionEngine.generateOraclePlay(

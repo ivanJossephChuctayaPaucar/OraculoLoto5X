@@ -27,30 +27,22 @@ object GeminiOracleAdvisor {
     private const val KEY_API_KEY = "gemini_api_key"
     private const val KEY_MODEL = "gemini_model"
 
-    // Default API Key encoded in Base64
-    private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SnJ4SEZiYkxnWWlVa2daMzBCWWh6NUo5RHZuRWdVSTVueEtpRUw4UE1uaGc="
-
     // Models supported by Google AI Studio
-    const val MODEL_FLASH_38 = "gemini-3.8-flash"
     const val MODEL_FLASH_35 = "gemini-3.5-flash"
+    const val MODEL_FLASH_20 = "gemini-2.0-flash"
+    const val MODEL_FLASH_15 = "gemini-1.5-flash"
     const val MODEL_FLASH_LATEST = "gemini-flash-latest"
 
-    // Backward compatibility aliases
-    const val MODEL_FLASH_25 = MODEL_FLASH_38
-    const val MODEL_FLASH_20 = MODEL_FLASH_35
+    // Alias de compatibilidad
+    const val MODEL_FLASH_25 = MODEL_FLASH_LATEST
+    const val MODEL_FLASH_38 = MODEL_FLASH_35
 
-    val FALLBACK_MODELS = listOf(MODEL_FLASH_35, MODEL_FLASH_LATEST)
+    val FALLBACK_MODELS = listOf(MODEL_FLASH_35, MODEL_FLASH_LATEST, MODEL_FLASH_20, MODEL_FLASH_15)
 
     private const val ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
     fun getApiKey(context: Context): String {
-        val saved = getPrefs(context).getString(KEY_API_KEY, null)?.takeIf { it.isNotBlank() }
-        if (saved != null) return saved
-        return try {
-            String(android.util.Base64.decode(DEFAULT_KEY_B64, android.util.Base64.DEFAULT), Charsets.UTF_8).trim()
-        } catch (_: Exception) {
-            ""
-        }
+        return getPrefs(context).getString(KEY_API_KEY, null)?.takeIf { it.isNotBlank() } ?: ""
     }
 
     fun saveApiKey(context: Context, key: String) {
@@ -61,8 +53,9 @@ object GeminiOracleAdvisor {
         val model = getPrefs(context).getString(KEY_MODEL, MODEL_FLASH_35) ?: MODEL_FLASH_35
         return when (model) {
             MODEL_FLASH_35, "gemini-3.5-flash" -> MODEL_FLASH_35
+            MODEL_FLASH_20, "gemini-2.0-flash" -> MODEL_FLASH_20
+            MODEL_FLASH_15, "gemini-1.5-flash" -> MODEL_FLASH_15
             MODEL_FLASH_LATEST, "gemini-flash-latest" -> MODEL_FLASH_LATEST
-            MODEL_FLASH_38, "gemini-3.8-flash" -> MODEL_FLASH_38
             else -> MODEL_FLASH_35
         }
     }
@@ -74,11 +67,12 @@ object GeminiOracleAdvisor {
     /** Prueba rápida de API Key con un payload mínimo */
     suspend fun testApiKey(apiKey: String, model: String = MODEL_FLASH_35): Result<String> = withContext(Dispatchers.IO) {
         val testModel = when (model) {
-            MODEL_FLASH_38 -> MODEL_FLASH_38
+            MODEL_FLASH_20 -> MODEL_FLASH_20
+            MODEL_FLASH_15 -> MODEL_FLASH_15
             MODEL_FLASH_LATEST -> MODEL_FLASH_LATEST
             else -> MODEL_FLASH_35
         }
-        val candidateModels = listOf(testModel, MODEL_FLASH_35, MODEL_FLASH_LATEST, MODEL_FLASH_38).distinct()
+        val candidateModels = listOf(testModel, MODEL_FLASH_35, MODEL_FLASH_LATEST, MODEL_FLASH_20, MODEL_FLASH_15).distinct()
 
         for (i in candidateModels.indices) {
             val m = candidateModels[i]
@@ -166,7 +160,7 @@ object GeminiOracleAdvisor {
         if (apiKey.isBlank()) return@withContext GeminiResult.NoApiKey
 
         val primaryModel = getSelectedModel(context)
-        val candidateModels = listOf(primaryModel, MODEL_FLASH_35, MODEL_FLASH_LATEST, MODEL_FLASH_38).distinct()
+        val candidateModels = listOf(primaryModel, MODEL_FLASH_35, MODEL_FLASH_LATEST, MODEL_FLASH_20, MODEL_FLASH_15).distinct()
 
         // Ventana deslizante de los últimos 6 mensajes
         val recentHistory = history.takeLast(6)

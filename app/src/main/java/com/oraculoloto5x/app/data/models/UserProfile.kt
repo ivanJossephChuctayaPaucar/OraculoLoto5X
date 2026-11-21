@@ -4,11 +4,11 @@ import java.time.LocalDate
 
 data class UserProfile(
     val id: Long = 1L,
-    val fullName: String = "Ivan Josseph Chuctaya Paucar",
-    val commonName: String = "Ivan Chuctaya",
-    val birthDate: LocalDate = LocalDate.of(1991, 7, 19),
-    val latitude: Double = -13.5319, // Cusco, Perú
-    val longitude: Double = -71.9675,
+    val fullName: String = "",
+    val commonName: String = "",
+    val birthDate: LocalDate = LocalDate.of(2000, 1, 1),
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
     val timeZone: String = "America/Lima",
     val notificationsEnabled: Boolean = false
 ) {
