@@ -28,7 +28,7 @@ object GeminiOracleAdvisor {
     private const val KEY_MODEL = "gemini_model"
 
     // Default API Key encoded in Base64
-    private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SjBla0RZNTR4Y3RRRW9YUDBac1NVcHZsTTNST04zMVIwTmg5dzVpMzdaU3c="
+    private const val DEFAULT_KEY_B64 = "QVEuQWI4Uk42SnJ4SEZiYkxnWWlVa2daMzBCWWh6NUo5RHZuRWdVSTVueEtpRUw4UE1uaGc="
 
     // Models supported by Google AI Studio
     const val MODEL_FLASH_38 = "gemini-3.8-flash"
