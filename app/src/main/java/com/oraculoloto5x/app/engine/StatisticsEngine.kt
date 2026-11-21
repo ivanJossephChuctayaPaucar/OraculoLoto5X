@@ -108,7 +108,9 @@ class StatisticsEngine(private val draws: List<DrawResult>) {
         }
 
         val sumCounts = sums.groupingBy { it }.eachCount()
-        val (mostCommonSum, mostCommonSumCount) = sumCounts.maxByOrNull { it.second } ?: run { sums.first() to 1 }
+        val mostCommonEntry = sumCounts.maxByOrNull { it.value }
+        val mostCommonSum = mostCommonEntry?.key ?: sums.first()
+        val mostCommonSumCount = mostCommonEntry?.value ?: 1
 
         return SumStats(minSum, maxSum, avgSum, medianSum, mostCommonSum, mostCommonSumCount)
     }
@@ -140,7 +142,7 @@ class StatisticsEngine(private val draws: List<DrawResult>) {
                 decade = dec,
                 range = "$from - $to",
                 count = count,
-                pct = if (totalBalls == 0) 0.0 else count * 100.0 / totalBalls
+                pct = if (totalBalls == 0.0) 0.0 else count * 100.0 / totalBalls
             )
         }
     }
