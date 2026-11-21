@@ -178,13 +178,14 @@ class LotteryFusionEngine(
 
         fun pickWeightedBall(available: Set<Int>): Int {
             val subTotalWeight = available.sumOf { adjustedWeights[it] ?: 1.0 }
-            var r = random.nextDouble() * subTotalWeight
+            val r = random.nextDouble() * subTotalWeight
+            var cumulative = 0.0
             for (ball in available) {
                 val w = adjustedWeights[ball] ?: 1.0
-                if (r <= w) return ball
-                r -= w
+                cumulative += w
+                if (r <= cumulative) return ball
             }
-            return available.random(random)
+            return available.last()
         }
 
         fun hasThreeOrMoreConsecutive(sortedList: List<Int>): Boolean {
