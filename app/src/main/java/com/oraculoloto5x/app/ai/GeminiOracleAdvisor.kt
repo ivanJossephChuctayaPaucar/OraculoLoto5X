@@ -120,6 +120,8 @@ object GeminiOracleAdvisor {
                     } else {
                         return@withContext Result.failure(Exception("Modelo no disponible (HTTP 404)."))
                     }
+                } else if (code == 402) {
+                    return@withContext Result.failure(Exception("Créditos agotados (HTTP 402). Genera una API Key gratuita en AI Studio (elige 'Create in new project')."))
                 } else if (code == 400 || code == 403) {
                     val errorMessage = try {
                         JSONObject(resp).getJSONObject("error").getString("message")
@@ -236,6 +238,8 @@ object GeminiOracleAdvisor {
                     } else {
                         return@withContext GeminiResult.Error("Modelo no disponible (HTTP 404).")
                     }
+                } else if (code == 402) {
+                    return@withContext GeminiResult.Error("Créditos agotados (HTTP 402). Genera una API Key gratuita en AI Studio (elige 'Create in new project').")
                 } else if (code == 400 || code == 403) {
                     val errorMessage = try {
                         JSONObject(response).getJSONObject("error").getString("message")
