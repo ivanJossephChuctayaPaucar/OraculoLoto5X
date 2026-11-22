@@ -307,7 +307,7 @@ class LotteryFusionEngine(
         val random = Random(System.currentTimeMillis() + 999)
         val attempts = 1_000
 
-        for (_ in 0 until attempts) {
+        for (attempt in 0 until attempts) {
             val shuffled = candidates.shuffled(random)
             val picked = shuffled.take(totalToPick).sorted()
 
@@ -361,7 +361,7 @@ class LotteryFusionEngine(
         }
 
         // Combinaciones aleatorias adicionales del pool para mejorar cobertura
-        for (_ in 0 until 20) {
+        for (attempt in 0 until 20) {
             if (combinations.size >= 8) break
             val shuffled = pool.shuffled(random)
             val combo = shuffled.take(totalToPick).sorted()
