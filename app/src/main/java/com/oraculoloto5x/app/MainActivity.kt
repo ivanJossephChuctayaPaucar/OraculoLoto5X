@@ -356,7 +356,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                     TopAppBar(
                         title = {
                             Text(
-                                text = "Tratados Herméticos (5 PDFs)",
+                                text = "Tratados Herméticos",
                                 color = GoldLight,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold

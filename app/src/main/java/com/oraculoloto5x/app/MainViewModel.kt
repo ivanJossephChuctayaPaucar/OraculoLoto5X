@@ -13,7 +13,6 @@ import com.oraculoloto5x.app.data.sync.SyncResult
 import com.oraculoloto5x.app.data.sync.TinkaOnlineSyncService
 import com.oraculoloto5x.app.engine.*
 import com.oraculoloto5x.app.notification.PlanetaryAlarmScheduler
-import com.oraculoloto5x.app.pdf.BookCitation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -100,13 +99,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _syncMessage = MutableStateFlow<String?>(null)
     val syncMessage: StateFlow<String?> = _syncMessage.asStateFlow()
 
-    // ── PDF Citation Direct Viewer ────────────────────────────────────────────
-    private val _activePdfCitation = MutableStateFlow<BookCitation?>(null)
-    val activePdfCitation: StateFlow<BookCitation?> = _activePdfCitation.asStateFlow()
-
-    private val _pdfBooksLinked = MutableStateFlow(0)
-    val pdfBooksLinked: StateFlow<Int> = _pdfBooksLinked.asStateFlow()
-
     init {
         loadData()
         loadChatHistory()
@@ -190,13 +182,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _isBallSheetOpen.value = false
     }
 
-    fun openPdfCitation(citation: BookCitation) {
-        _activePdfCitation.value = citation
-    }
-
-    fun closePdfCitation() {
-        _activePdfCitation.value = null
-    }
 
     // ── Chat Conversacional Inteligente ───────────────────────────────────────
 
@@ -373,12 +358,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun consultGemini(customQuestion: String? = null) {
         val q = if (customQuestion.isNullOrBlank()) "Analiza mi jugada de hoy y el semáforo" else customQuestion.trim()
         sendChatMessage(q)
-    }
-
-    fun refreshPdfCount() {
-        viewModelScope.launch {
-            _pdfBooksLinked.value = com.oraculoloto5x.app.pdf.NativePdfManager.countFoundBooks(getApplication())
-        }
     }
 
     fun insertOfficialDraw(lottery: LotteryType, date: LocalDate, balls: List<Int>) {

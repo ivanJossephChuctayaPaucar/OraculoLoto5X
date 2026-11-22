@@ -34,11 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.oraculoloto5x.app.MainViewModel
 import com.oraculoloto5x.app.ai.HermeticKnowledgeRetriever
-import com.oraculoloto5x.app.ai.ParsedCitationsResult
 import com.oraculoloto5x.app.data.models.ChatMessage
 import com.oraculoloto5x.app.engine.RiskLevel
-import com.oraculoloto5x.app.pdf.BookCitation
-import com.oraculoloto5x.app.pdf.PdfPageViewerDialog
 import com.oraculoloto5x.app.ui.components.BallDetailBottomSheet
 import com.oraculoloto5x.app.ui.components.LotteryBall
 import com.oraculoloto5x.app.ui.theme.*
@@ -61,7 +58,6 @@ fun UnifiedOracleChatScreen(
     val isChatLoading by viewModel.isChatLoading.collectAsState()
     val isBallSheetOpen by viewModel.isBallSheetOpen.collectAsState()
     val selectedAnalysis by viewModel.selectedBallForAnalysis.collectAsState()
-    val activePdfCitation by viewModel.activePdfCitation.collectAsState()
     val syncMessage by viewModel.syncMessage.collectAsState()
 
     var isHeroExpanded by remember { mutableStateOf(true) }
@@ -373,7 +369,7 @@ fun UnifiedOracleChatScreen(
             )
         }
 
-        // ── CHAT FEED CON CITAS PDF CLICKEABLES ─────────────────────────────────
+        // ── CHAT FEED ───────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -433,12 +429,7 @@ fun UnifiedOracleChatScreen(
                     contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
                 ) {
                     items(chatMessages) { message ->
-                        ChatMessageItem(
-                            message = message,
-                            onOpenCitation = { citation: BookCitation ->
-                                viewModel.openPdfCitation(citation)
-                            }
-                        )
+                        ChatMessageItem(message = message)
                     }
 
                     if (isChatLoading) {
@@ -559,14 +550,6 @@ fun UnifiedOracleChatScreen(
         }
     }
 
-    // ── DIÁLOGO DIRECTO DEL VISOR DE PÁGINAS PDF ────────────────────────────────
-    activePdfCitation?.let { citation ->
-        PdfPageViewerDialog(
-            citation = citation,
-            onDismiss = { viewModel.closePdfCitation() }
-        )
-    }
-
     // ── MODAL BOTTOM SHEET DE DETALLE DE BOLILLA ────────────────────────────────
     if (isBallSheetOpen && selectedAnalysis != null) {
         BallDetailBottomSheet(
@@ -579,8 +562,7 @@ fun UnifiedOracleChatScreen(
 
 @Composable
 private fun ChatMessageItem(
-    message: ChatMessage,
-    onOpenCitation: (BookCitation) -> Unit
+    message: ChatMessage
 ) {
     val isUser = message.sender == "user"
 
@@ -614,8 +596,8 @@ private fun ChatMessageItem(
             }
         } else {
             // Burbuja Oráculo
-            val parsed = remember(message.text) {
-                HermeticKnowledgeRetriever.parseCitationsFromText(message.text)
+            val cleanedText = remember(message.text) {
+                HermeticKnowledgeRetriever.stripLegacyCitationTags(message.text)
             }
 
             Row(
@@ -648,50 +630,11 @@ private fun ChatMessageItem(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = parsed.cleanedText,
+                            text = cleanedText,
                             color = TextPrimary,
                             fontSize = 14.sp,
                             lineHeight = 20.sp
                         )
-
-                        // Renderizado de botones interactivos para cada cita PDF encontrada
-                        if (parsed.citations.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "TRATADOS CITADOS:",
-                                color = GoldLight,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                for (citation in parsed.citations) {
-                                    AssistChip(
-                                        onClick = { onOpenCitation(citation) },
-                                        label = {
-                                            Text(
-                                                text = "📖 ${citation.bookTitle} · Pág. ${citation.pdfPageIndex + 1}",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = GoldLight
-                                            )
-                                        },
-                                        colors = AssistChipDefaults.assistChipColors(
-                                            containerColor = Color(0xFF1C2536)
-                                        ),
-                                        border = BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.7f)),
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                }
-                            }
-                        }
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(

@@ -1,8 +1,5 @@
 package com.oraculoloto5x.app.ui.screens
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,8 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material3.*
@@ -25,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,8 +29,6 @@ import com.oraculoloto5x.app.data.knowledge.NumerologyKnowledgeBase
 import com.oraculoloto5x.app.data.models.NumberAnalysis
 import com.oraculoloto5x.app.pdf.BookCitation
 import com.oraculoloto5x.app.pdf.BookCitationRegistry
-import com.oraculoloto5x.app.pdf.NativePdfManager
-import com.oraculoloto5x.app.pdf.PdfPageViewerDialog
 import com.oraculoloto5x.app.ui.components.LotteryBall
 import com.oraculoloto5x.app.ui.components.PyramidViewCard
 import com.oraculoloto5x.app.ui.theme.*
@@ -46,27 +38,9 @@ import java.time.LocalDate
 fun FiveBooksAnalysisScreen(
     viewModel: MainViewModel
 ) {
-    val context = LocalContext.current
     val oracleResult by viewModel.oracleResult.collectAsState()
     val selectedBallAnalysis by viewModel.selectedBallForAnalysis.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
-    val pdfBooksLinked by viewModel.pdfBooksLinked.collectAsState()
-
-    var activePdfCitation by remember { mutableStateOf<BookCitation?>(null) }
-
-    // SAF folder picker
-    val folderPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            NativePdfManager.saveTreeUri(context, uri)
-            viewModel.refreshPdfCount()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.refreshPdfCount()
-    }
 
     val phillipsAnalysis = remember(userProfile.birthDate) {
         NumerologyKnowledgeBase.analyzePhillipsGrid(userProfile.birthDate)
@@ -86,7 +60,7 @@ fun FiveBooksAnalysisScreen(
     ) {
         Spacer(modifier = Modifier.height(4.dp))
 
-        // ── BARRA SUPERIOR: TÍTULO Y BOTÓN VINCULAR PDFS ─────────────────────
+        // ── BARRA SUPERIOR: TÍTULO ─────────────────────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -101,39 +75,16 @@ fun FiveBooksAnalysisScreen(
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "Citas textuales y visor de páginas originales",
+                    text = "Fundamentos esotéricos y tratados clásicos integrados",
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
             }
-
-            // Botón Vincular PDFs
-            FilledTonalButton(
-                onClick = { folderPicker.launch(null) },
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = if (pdfBooksLinked >= 5) EmeraldDark else Color(0xFF1E2838),
-                    contentColor = if (pdfBooksLinked >= 5) EmeraldLight else GoldLight
-                ),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = if (pdfBooksLinked >= 5) Icons.Default.CheckCircle else Icons.Default.FolderOpen,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (pdfBooksLinked > 0) "$pdfBooksLinked/5 PDFs" else "Vincular PDFs",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
 
-        // ── CARRUSEL HORIZONTAL DE LOS 5 LIBROS (ESTILO TOMO ANTIGUO) ─────────
+        // ── CARRUSEL HORIZONTAL DE LOS 5 LIBROS ────────────────────────────────
         Text(
-            text = "TRATADOS HERMÉTICOS (Toca un libro para abrir su visor):",
+            text = "LOS 5 TRATADOS CLÁSICOS INTEGRADOS:",
             color = TextSecondary,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold
@@ -144,10 +95,7 @@ fun FiveBooksAnalysisScreen(
             contentPadding = PaddingValues(vertical = 4.dp)
         ) {
             items(BookCitationRegistry.getBookCovers()) { bookCover ->
-                BookTomeCard(
-                    citation = bookCover,
-                    onClick = { activePdfCitation = bookCover }
-                )
+                BookTomeCard(citation = bookCover)
             }
         }
 
@@ -160,7 +108,7 @@ fun FiveBooksAnalysisScreen(
             letterSpacing = 0.5.sp
         )
 
-        // 1. Tarjeta Sendero 37/10 de Dan Millman (Clickable para abrir pág. 144)
+        // 1. Tarjeta Sendero 37/10 de Dan Millman
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -171,7 +119,6 @@ fun FiveBooksAnalysisScreen(
                     )
                 )
                 .border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                .clickable { activePdfCitation = BookCitationRegistry.MILLMAN_SENDERO_37_10 }
                 .padding(14.dp)
         ) {
             Row(
@@ -207,7 +154,7 @@ fun FiveBooksAnalysisScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "📖 Pág. 145",
+                            text = "📖 Pág. 144",
                             color = EmeraldLight,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -219,17 +166,11 @@ fun FiveBooksAnalysisScreen(
                         fontSize = 11.sp,
                         lineHeight = 15.sp
                     )
-                    Text(
-                        text = "Toca para abrir la página 144 del tratado original en PDF",
-                        color = GoldPrimary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
                 }
             }
         }
 
-        // 2. Tarjeta Casa 5 Agathe Tuche (Westcott p.63) - Clickable para abrir pág. 63
+        // 2. Tarjeta Casa 5 Agathe Tuche (Westcott)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -240,7 +181,6 @@ fun FiveBooksAnalysisScreen(
                     )
                 )
                 .border(1.dp, EmeraldAccent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                .clickable { activePdfCitation = BookCitationRegistry.WESTCOTT_CASA_5_AGATHE_TUCHE }
                 .padding(14.dp)
         ) {
             Row(
@@ -288,20 +228,13 @@ fun FiveBooksAnalysisScreen(
                         fontSize = 11.sp,
                         lineHeight = 15.sp
                     )
-                    Text(
-                        text = "Toca para abrir la página 63 del tratado de Westcott en PDF",
-                        color = EmeraldAccent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
                 }
             }
         }
 
         // 3. Cuadrícula 3x3 Interactiva de David A. Phillips
         InteractivePhillipsGridCard(
-            birthDate = userProfile.birthDate,
-            onOpenCitation = { activePdfCitation = it }
+            birthDate = userProfile.birthDate
         )
 
         // 3. Visualización de las 4 Pirámides de Vida
@@ -345,29 +278,19 @@ fun FiveBooksAnalysisScreen(
 
             selectedBallAnalysis?.let { analysis ->
                 BallDetailedInspectionCard(
-                    analysis = analysis,
-                    onOpenCitation = { activePdfCitation = it }
+                    analysis = analysis
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
     }
-
-    // Visor de PDF modal
-    activePdfCitation?.let { citation ->
-        PdfPageViewerDialog(
-            citation = citation,
-            onDismiss = { activePdfCitation = null }
-        )
-    }
 }
 
 // ── TARJETA ESTILO TOMO ANTIGUO PARA EL CARRUSEL ──────────────────────────────
 @Composable
 fun BookTomeCard(
-    citation: BookCitation,
-    onClick: () -> Unit
+    citation: BookCitation
 ) {
     Box(
         modifier = Modifier
@@ -380,7 +303,6 @@ fun BookTomeCard(
                 )
             )
             .border(1.dp, GoldPrimary.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
             .padding(10.dp)
     ) {
         Column(
@@ -400,7 +322,7 @@ fun BookTomeCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "PDF",
+                        text = "TRATADO",
                         color = GoldLight,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Black
@@ -436,15 +358,11 @@ fun BookTomeCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Pág. ${citation.pdfPageIndex + 1}",
+                    text = citation.chapterLabel,
                     color = EmeraldAccent,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Toca para abrir",
-                    color = TextMuted,
-                    fontSize = 9.sp
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2
                 )
             }
         }
@@ -455,7 +373,6 @@ fun BookTomeCard(
 @Composable
 fun InteractivePhillipsGridCard(
     birthDate: LocalDate,
-    onOpenCitation: (BookCitation) -> Unit
 ) {
     // Digits of 1991-07-19: 1, 9, 9, 1, 0, 7, 1, 9 -> 1: three times, 7: once, 9: three times. Missing: 2, 3, 4, 5, 6, 8
     val dateDigits = remember(birthDate) {
@@ -495,11 +412,7 @@ fun InteractivePhillipsGridCard(
                     )
                 }
 
-                IconButton(
-                    onClick = { onOpenCitation(BookCitationRegistry.PHILLIPS_CUADRICULA_3X3) }
-                ) {
-                    Icon(Icons.Default.MenuBook, contentDescription = "Ver libro", tint = GoldPrimary, modifier = Modifier.size(20.dp))
-                }
+
             }
 
             // Grid Layout:
@@ -546,13 +459,7 @@ fun InteractivePhillipsGridCard(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(bgColor)
                                     .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        when {
-                                            digit in listOf(4, 5, 6) -> onOpenCitation(BookCitationRegistry.PHILLIPS_FLECHA_FRUSTRACION)
-                                            digit == 7 -> onOpenCitation(BookCitationRegistry.PHILLIPS_7_AISLADO)
-                                            else -> onOpenCitation(BookCitationRegistry.PHILLIPS_CUADRICULA_3X3)
-                                        }
-                                    }
+
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
@@ -587,12 +494,7 @@ fun InteractivePhillipsGridCard(
 @Composable
 fun BallDetailedInspectionCard(
     analysis: NumberAnalysis,
-    onOpenCitation: (BookCitation) -> Unit
 ) {
-    val citations = remember(analysis.ballNumber) {
-        BookCitationRegistry.getCitationsForBall(analysis.ballNumber)
-    }
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -622,12 +524,6 @@ fun BallDetailedInspectionCard(
                         color = TextSecondary,
                         fontSize = 11.sp
                     )
-                }
-
-                if (citations.isNotEmpty()) {
-                    IconButton(onClick = { onOpenCitation(citations.first()) }) {
-                        Icon(Icons.Default.MenuBook, contentDescription = "Ver en PDF", tint = GoldPrimary)
-                    }
                 }
             }
 

@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.sp
 import com.oraculoloto5x.app.data.models.NumberAnalysis
 import com.oraculoloto5x.app.pdf.BookCitation
 import com.oraculoloto5x.app.pdf.BookCitationRegistry
-import com.oraculoloto5x.app.pdf.PdfPageViewerDialog
 import com.oraculoloto5x.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +34,6 @@ fun BallDetailBottomSheet(
     anchorBall: Int?,
     onDismiss: () -> Unit
 ) {
-    var pdfCitationToOpen by remember { mutableStateOf<BookCitation?>(null) }
     val citations = remember(analysis.ballNumber) {
         BookCitationRegistry.getCitationsForBall(analysis.ballNumber)
     }
@@ -147,9 +145,9 @@ fun BallDetailBottomSheet(
                     .background(Color(0xFF263345))
             )
 
-            // Citas directas y enlaces a páginas PDF
+            // Citas directas de tratados herméticos
             Text(
-                text = "CITAS LITERALES Y ACCESO A FUENTES ORIGINALES",
+                text = "CITAS LITERALES DE TRATADOS HERMÉTICOS",
                 color = GoldPrimary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -159,10 +157,7 @@ fun BallDetailBottomSheet(
             if (citations.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     for (citation in citations) {
-                        CitationCard(
-                            citation = citation,
-                            onOpenPdf = { pdfCitationToOpen = citation }
-                        )
+                        CitationCard(citation = citation)
                     }
                 }
             }
@@ -234,19 +229,11 @@ fun BallDetailBottomSheet(
             }
         }
     }
-
-    pdfCitationToOpen?.let { citation ->
-        PdfPageViewerDialog(
-            citation = citation,
-            onDismiss = { pdfCitationToOpen = null }
-        )
-    }
 }
 
 @Composable
 fun CitationCard(
-    citation: BookCitation,
-    onOpenPdf: () -> Unit
+    citation: BookCitation
 ) {
     Box(
         modifier = Modifier
@@ -258,7 +245,6 @@ fun CitationCard(
                 )
             )
             .border(1.dp, GoldPrimary.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-            .clickable(onClick = onOpenPdf)
             .padding(12.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -275,7 +261,7 @@ fun CitationCard(
                     maxLines = 1
                 )
                 Text(
-                    text = "Pág. ${citation.pdfPageIndex + 1}",
+                    text = "Ref. pág. ${citation.pdfPageIndex + 1}",
                     color = EmeraldAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -301,7 +287,7 @@ fun CitationCard(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Ver página original del libro (${citation.chapterLabel})",
+                    text = citation.chapterLabel,
                     color = GoldPrimary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold

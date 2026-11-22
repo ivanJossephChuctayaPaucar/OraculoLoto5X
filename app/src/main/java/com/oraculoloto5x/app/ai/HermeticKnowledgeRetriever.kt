@@ -4,8 +4,6 @@ import com.oraculoloto5x.app.data.knowledge.NumerologyKnowledgeBase
 import com.oraculoloto5x.app.data.models.*
 import com.oraculoloto5x.app.engine.DailyRiskAssessment
 import com.oraculoloto5x.app.engine.OracleGenerationResult
-import com.oraculoloto5x.app.pdf.BookCitation
-import com.oraculoloto5x.app.pdf.BookCitationRegistry
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -13,57 +11,10 @@ import java.util.Locale
 import java.util.regex.Pattern
 
 data class HermeticContextBundle(
-    val systemInstruction: String,
-    val allowedTagsWhitelist: List<String>,
-    val relevantCitations: List<BookCitation>
-)
-
-data class ParsedCitationsResult(
-    val cleanedText: String,
-    val citations: List<BookCitation>
+    val systemInstruction: String
 )
 
 object HermeticKnowledgeRetriever {
-
-    // Lista blanca cerrada de etiquetas válidas para evitar alucinaciones
-    val ALLOWED_TAGS_MAP: Map<String, BookCitation> = mapOf(
-        // Cheiro
-        "[PDF:cheiro:37]" to BookCitationRegistry.CHEIRO_SERIE_1,
-        "[PDF:cheiro:70]" to BookCitationRegistry.CHEIRO_ALFABETO_CALDEO,
-        "[PDF:cheiro:80]" to BookCitationRegistry.CHEIRO_COMPUESTOS_10_14,
-        "[PDF:cheiro:81]" to BookCitationRegistry.CHEIRO_COMPUESTOS_15_18,
-        "[PDF:cheiro:82]" to BookCitationRegistry.CHEIRO_COMPUESTOS_19_23,
-        "[PDF:cheiro:83]" to BookCitationRegistry.CHEIRO_COMPUESTOS_24_30,
-        "[PDF:cheiro:84]" to BookCitationRegistry.CHEIRO_COMPUESTOS_31_43,
-        "[PDF:cheiro:85]" to BookCitationRegistry.CHEIRO_COMPUESTOS_44_52,
-        "[PDF:cheiro:152]" to BookCitationRegistry.CHEIRO_APUESTAS,
-
-        // Dan Millman
-        "[PDF:millman:144]" to BookCitationRegistry.MILLMAN_SENDERO_37_10,
-        "[PDF:millman:132]" to BookCitationRegistry.MILLMAN_19_10,
-        "[PDF:millman:76]" to BookCitationRegistry.MILLMAN_PENSAMIENTO_MAGICO,
-        "[PDF:millman:108]" to BookCitationRegistry.MILLMAN_ABUNDANCIA_8,
-        "[PDF:millman:150]" to BookCitationRegistry.MILLMAN_46_10,
-
-        // David Phillips
-        "[PDF:phillips:16]" to BookCitationRegistry.PHILLIPS_CUADRICULA_3X3,
-        "[PDF:phillips:41]" to BookCitationRegistry.PHILLIPS_7_AISLADO,
-        "[PDF:phillips:60]" to BookCitationRegistry.PHILLIPS_FLECHA_FRUSTRACION,
-        "[PDF:phillips:86]" to BookCitationRegistry.PHILLIPS_REGENTE_10,
-        "[PDF:phillips:100]" to BookCitationRegistry.PHILLIPS_CICLO_9,
-        "[PDF:phillips:132]" to BookCitationRegistry.PHILLIPS_PIRAMIDES,
-
-        // W. W. Westcott
-        "[PDF:westcott:21]" to BookCitationRegistry.WESTCOTT_PRIMOS_PERFECTOS,
-        "[PDF:westcott:33]" to BookCitationRegistry.WESTCOTT_CUADRADOS_MAGICOS,
-        "[PDF:westcott:49]" to BookCitationRegistry.WESTCOTT_HORAS_PLANETARIAS,
-        "[PDF:westcott:63]" to BookCitationRegistry.WESTCOTT_CASA_5_AGATHE_TUCHE,
-        "[PDF:westcott:115]" to BookCitationRegistry.WESTCOTT_NUMERO_19,
-
-        // Glynis McCants (Índices válidos: gyhn.pdf tiene 13 páginas, pág 4 y 6)
-        "[PDF:mccants:4]" to BookCitationRegistry.MCCANTS_NATURAL_MATCH,
-        "[PDF:mccants:6]" to BookCitationRegistry.MCCANTS_LUCKY_LOTTO
-    )
 
     fun buildContextBundle(
         userProfile: UserProfile = UserProfile(),
@@ -83,40 +34,7 @@ object HermeticKnowledgeRetriever {
         val effectiveRisk = oracleResult?.riskAssessment ?: riskAssessment
         val effectiveMoon = oracleResult?.moonInfo ?: moonInfo ?: NatalAstronomicalProfile.getMoonSyncBonus(currentDate.toEpochDay())
 
-        // ── 1. Citas relevantes y lista blanca de etiquetas ─────────────────────────
-        val coreWhitelistTags = listOf(
-            "[PDF:cheiro:82]",
-            "[PDF:cheiro:152]",
-            "[PDF:millman:144]",
-            "[PDF:phillips:60]",
-            "[PDF:westcott:63]",
-            "[PDF:mccants:4]",
-            "[PDF:mccants:6]"
-        )
-
-        val dynamicTags = mutableSetOf<String>()
-        val citationsSet = mutableSetOf<BookCitation>()
-
-        // Agregar citas fijas de la lista blanca
-        for (tag in coreWhitelistTags) {
-            ALLOWED_TAGS_MAP[tag]?.let { citationsSet.add(it) }
-        }
-
-        // Agregar citas dinámicas base-0 de las 6 bolillas activas
-        for (b in effectiveMasterBalls) {
-            val ballCitations = BookCitationRegistry.getCitationsForBall(b)
-            for (c in ballCitations) {
-                val tag = "[PDF:${c.bookId.lowercase()}:${c.pdfPageIndex}]"
-                if (ALLOWED_TAGS_MAP.containsKey(tag)) {
-                    dynamicTags.add(tag)
-                    citationsSet.add(c)
-                }
-            }
-        }
-
-        val allowedTagsList = (coreWhitelistTags + dynamicTags).distinct()
-
-        // ── 2. Construcción de secciones del Snapshot Completo (~2 KB) ──────────────
+        // ── Construcción de secciones del Snapshot Completo (~2 KB) ─────────────────
 
         // SECCIÓN 1: PERFIL NATAL Y CICLOS ACTIVOS
         val birthDayRed = NumerologyKnowledgeBase.reduceToSingleDigit(userProfile.birthDate.dayOfMonth)
@@ -266,39 +184,19 @@ REGLAS DE RESPUESTA ELABORADA Y HERMÉTICA:
   2) Radiografía Hermética por Bolilla: Explica con detalle cómo convergen los 5 tratados en las bolillas seleccionadas (Cheiro: compuestos caldeos; Millman: propósito de vida 37/10; Phillips: cuadrícula pitagórica y pirámides; Westcott: primos y perfectos; McCants: tríada 1-5-7).
   3) Validación Estadística: Distribución en campana de Gauss, balance par/impar, frecuencias históricas de La Tinka y efecto del filtro de enfriamiento.
   4) Guía Táctica de Jugada: Recomendaciones de juego, rueda reducida de 9 bolillas y enfoque mental.
-- CITAS DE LIBROS: Enriquece tus explicaciones citando los tratados originales. Inserta AL FINAL de las oraciones relevantes ÚNICAMENTE etiquetas de esta lista blanca permitida:
-  ${allowedTagsList.joinToString(", ")}
-- PROHIBIDO inventar etiquetas [PDF:...] que no estén en la lista blanca anterior.
+- Menciona los tratados (Cheiro, Millman, Phillips, Westcott, McCants) por su nombre cuando expliques un cálculo, pero NO uses etiquetas ni referencias a páginas de libros.
 """.trimIndent()
 
-        return HermeticContextBundle(
-            systemInstruction = systemInstruction,
-            allowedTagsWhitelist = allowedTagsList,
-            relevantCitations = citationsSet.toList()
-        )
+        return HermeticContextBundle(systemInstruction = systemInstruction)
     }
 
-    private val PDF_TAG_PATTERN = Pattern.compile("\\[PDF:([a-z]+):(\\d+)\\]")
+    private val LEGACY_TAG_PATTERN = Pattern.compile("\\[PDF:[a-z]+:\\d+\\]")
 
     /**
-     * Extrae las etiquetas válidas y limpia el texto para visualización,
-     * retornando el texto limpio y la lista de citas reales.
+     * Elimina etiquetas [PDF:...] heredadas de mensajes antiguos guardados en el historial
+     * del chat, para que no se muestren como texto crudo.
      */
-    fun parseCitationsFromText(rawText: String): ParsedCitationsResult {
-        val matcher = PDF_TAG_PATTERN.matcher(rawText)
-        val citations = mutableListOf<BookCitation>()
-
-        while (matcher.find()) {
-            val fullTag = matcher.group(0)
-            ALLOWED_TAGS_MAP[fullTag]?.let {
-                if (!citations.contains(it)) {
-                    citations.add(it)
-                }
-            }
-        }
-
-        // Limpiar las etiquetas [PDF:...] del texto visible para que se lean de forma limpia
-        val cleanedText = matcher.replaceAll("").replace("  ", " ").trim()
-        return ParsedCitationsResult(cleanedText, citations)
+    fun stripLegacyCitationTags(rawText: String): String {
+        return LEGACY_TAG_PATTERN.matcher(rawText).replaceAll("").replace("  ", " ").trim()
     }
 }
