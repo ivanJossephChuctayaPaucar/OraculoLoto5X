@@ -32,7 +32,11 @@ data class OracleGenerationResult(
     val targetDrawDate: LocalDate,
     val lotteryType: LotteryType,
     val moonInfo: MoonPhaseInfo,
-    val house5RulersDescription: String = "Casa 5 Agathe Tuche: Mercurio (5) y Venus (6)"
+    val house5RulersDescription: String = "Casa 5 Agathe Tuche: Mercurio (5) y Venus (6)",
+    // ── Estrategias múltiples (valor de UX: diversificación, no mejora odds reales) ──
+    val playsByStrategy: Map<String, List<Int>> = emptyMap(),
+    // ── Wheeling del reducedWheel9 (valor real: cobertura garantizada si aciertas suficientes del pool) ──
+    val wheelingCombinations: List<List<Int>> = emptyList()
 )
 
 class LotteryFusionEngine(
@@ -191,15 +195,6 @@ class LotteryFusionEngine(
             return available.last()
         }
 
-        fun hasThreeOrMoreConsecutive(sortedList: List<Int>): Boolean {
-            for (idx in 0 until sortedList.size - 2) {
-                if (sortedList[idx] + 1 == sortedList[idx + 1] && sortedList[idx + 1] + 1 == sortedList[idx + 2]) {
-                    return true
-                }
-            }
-            return false
-        }
-
         val iterations = 10_000
         for (i in 0 until iterations) {
             val picked = mutableSetOf<Int>()
@@ -254,6 +249,33 @@ class LotteryFusionEngine(
             }
         }
 
+        // ── ESTRATEGIAS MÚLTIPLES (valor de UX: diversificación, no mejora odds reales) ──
+        // CORE: masterPlay ya generado por Monte Carlo (numerología + frecuencia + filtros gaussianos)
+        // SHADOW: jugada con los 9 números de menor puntuación (inverso), mismos filtros gaussianos
+        val shadowCandidates = ballAnalyses
+            .sortedBy { it.compositeScore }
+            .take(9)
+            .map { it.ballNumber }
+            .sorted()
+        val shadowPlay = buildBalancedPlay(shadowCandidates, totalToPick, lotteryType)
+
+        // ASTRO: jugada con los 9 números de mayor puntuación numerológica pura (sin historial de frecuencia)
+        val astroCandidates = ballAnalyses
+            .sortedByDescending { it.compositeScore - (it.historicalFrequencyCount * 2.5).coerceAtMost(20.0) }
+            .take(9)
+            .map { it.ballNumber }
+            .sorted()
+        val astroPlay = buildBalancedPlay(astroCandidates, totalToPick, lotteryType)
+
+        val playsByStrategy = mapOf(
+            "CORE" to bestPlay,
+            "SHADOW" to shadowPlay,
+            "ASTRO" to astroPlay
+        )
+
+        // ── WHEELING DEL REDUCED WHEEL 9 (valor real: cobertura si aciertas suficientes del pool) ──
+        val wheelingCombinations = buildWheeling(reducedWheel9, totalToPick, lotteryType)
+
         val riskAssessment = assessDailyRisk(targetDate)
 
         return OracleGenerationResult(
@@ -266,7 +288,117 @@ class LotteryFusionEngine(
             targetDrawDate = targetDate,
             lotteryType = lotteryType,
             moonInfo = moonInfo,
-            house5RulersDescription = "Casa 5 Agathe Tuche: Mercurio (5) y Venus (6)"
+            house5RulersDescription = "Casa 5 Agathe Tuche: Mercurio (5) y Venus (6)",
+            playsByStrategy = playsByStrategy,
+            wheelingCombinations = wheelingCombinations
         )
+    }
+
+    /**
+     * Construye una jugada equilibrada de [totalToPick] números a partir de [candidates],
+     * aplicando los mismos filtros gaussianos y anti-consecutivos del Monte Carlo.
+     * Usada para estrategias SHADOW y ASTRO.
+     */
+    private fun buildBalancedPlay(
+        candidates: List<Int>,
+        totalToPick: Int,
+        lotteryType: LotteryType
+    ): List<Int> {
+        val random = Random(System.currentTimeMillis() + 999)
+        val attempts = 1_000
+
+        for (_ in 0 until attempts) {
+            val shuffled = candidates.shuffled(random)
+            val picked = shuffled.take(totalToPick).sorted()
+
+            // Filtro anti-consecutivos (3 o más seguidos)
+            if (hasThreeOrMoreConsecutive(picked)) continue
+
+            // Filtros de campana de Gauss
+            val sum = picked.sum()
+            if (sum !in lotteryType.minGaussianSum..lotteryType.maxGaussianSum) continue
+
+            val evens = picked.count { it % 2 == 0 }
+            val isBalancedParity = if (totalToPick == 6) {
+                evens in 2..4
+            } else {
+                evens in 2..3
+            }
+            if (!isBalancedParity) continue
+
+            val decadesCount = picked.map { it / 10 }.distinct().size
+            if (decadesCount < lotteryType.minDistinctDecades) continue
+
+            return picked
+        }
+
+        // Fallback: devolver los primeros totalToPick candidatos ordenados
+        return candidates.take(totalToPick).sorted()
+    }
+
+    /**
+     * Genera combinaciones de wheeling abreviado desde [pool] (típicamente reducedWheel9 de 9 números).
+     * Cada combinación tiene [totalToPick] números. Si suficientes números del pool salen en el sorteo,
+     * al menos una combinación contendrá varios aciertos.
+     */
+    private fun buildWheeling(
+        pool: List<Int>,
+        totalToPick: Int,
+        lotteryType: LotteryType
+    ): List<List<Int>> {
+        if (pool.size < totalToPick) return emptyList()
+
+        val combinations = mutableListOf<List<Int>>()
+        val random = Random(System.currentTimeMillis() + 42)
+
+        // Estrategia: ventanas deslizantes + algunas combinaciones aleatorias del pool
+        // Ventanas deslizantes de tamaño totalToPick sobre el pool ordenado
+        for (i in 0 until pool.size - totalToPick + 1) {
+            val combo = pool.subList(i, i + totalToPick)
+            if (isValidPlay(combo, lotteryType)) {
+                combinations.add(combo)
+            }
+        }
+
+        // Combinaciones aleatorias adicionales del pool para mejorar cobertura
+        for (_ in 0 until 20) {
+            if (combinations.size >= 8) break
+            val shuffled = pool.shuffled(random)
+            val combo = shuffled.take(totalToPick).sorted()
+            if (isValidPlay(combo, lotteryType) && combo !in combinations) {
+                combinations.add(combo)
+            }
+        }
+
+        return combinations.take(8)
+    }
+
+    private fun isValidPlay(play: List<Int>, lotteryType: LotteryType): Boolean {
+        val sorted = play.sorted()
+        if (hasThreeOrMoreConsecutive(sorted)) return false
+
+        val sum = sorted.sum()
+        if (sum !in lotteryType.minGaussianSum..lotteryType.maxGaussianSum) return false
+
+        val evens = sorted.count { it % 2 == 0 }
+        val totalToPick = sorted.size
+        val isBalancedParity = if (totalToPick == 6) {
+            evens in 2..4
+        } else {
+            evens in 2..3
+        }
+        if (!isBalancedParity) return false
+
+        val decadesCount = sorted.map { it / 10 }.distinct().size
+        return decadesCount >= lotteryType.minDistinctDecades
+    }
+
+    private fun hasThreeOrMoreConsecutive(sortedList: List<Int>): Boolean {
+        for (idx in 0 until sortedList.size - 2) {
+            if (sortedList[idx] + 1 == sortedList[idx + 1] && sortedList[idx + 1] + 1 == sortedList[idx + 2]) {
+                return true
+            }
+        }
+        return false
     }
 }
