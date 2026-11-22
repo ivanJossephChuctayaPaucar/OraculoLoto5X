@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.oraculoloto5x.app.MainViewModel
@@ -61,6 +62,10 @@ fun TodayOracleScreen(
     val isBallSheetOpen by viewModel.isBallSheetOpen.collectAsState()
     val selectedAnalysis by viewModel.selectedBallForAnalysis.collectAsState()
     val hasPlaySavedToday by viewModel.hasPlaySavedToday.collectAsState()
+
+    // Estrategia activa (CORE = jugada maestra por defecto)
+    var selectedStrategy by remember { mutableStateOf("CORE") }
+    var showWheeling by remember { mutableStateOf(false) }
 
     // Gemini AI states
     val geminiResult by viewModel.geminiResult.collectAsState()
@@ -165,6 +170,12 @@ fun TodayOracleScreen(
 
         // ── PASO 2: HERO CARD - JUGADA MAESTRA ──────────────────────────────
         oracleResult?.let { res ->
+            // Seleccionar las bolillas según la estrategia activa
+            val activePlay = when (selectedStrategy) {
+                "SHADOW" -> res.playsByStrategy["SHADOW"] ?: res.masterPlay
+                "ASTRO" -> res.playsByStrategy["ASTRO"] ?: res.masterPlay
+                else -> res.masterPlay // CORE por defecto
+            }
             val riskBorderColor = when (res.riskAssessment.riskLevel) {
                 RiskLevel.VERDE -> EmeraldAccent
                 RiskLevel.AMARILLO -> GoldPrimary
@@ -188,6 +199,53 @@ fun TodayOracleScreen(
                 )
             }
 
+            // ── SELECTOR DE ESTRATEGIAS ─────────────────────────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf("CORE", "SHADOW", "ASTRO").forEach { strategy ->
+                    val isActive = selectedStrategy == strategy
+                    val strategyLabel = when (strategy) {
+                        "CORE" -> "CORE"
+                        "SHADOW" -> "SHADOW"
+                        "ASTRO" -> "ASTRO"
+                        else -> strategy
+                    }
+                    Button(
+                        onClick = { selectedStrategy = strategy },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isActive) GoldPrimary else Color(0xFF1E2638),
+                            contentColor = if (isActive) DarkBackground else GoldLight
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = strategyLabel,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Descripción breve de cada estrategia
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "CORE: balanceado · SHADOW: números fríos · ASTRO: solo numerología",
+                    color = TextMuted,
+                    fontSize = 9.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -208,7 +266,7 @@ fun TodayOracleScreen(
                     ) {
                         Column {
                             Text(
-                                text = "JUGADA MAESTRA: ${selectedLottery.displayName}",
+                                text = "JUGADA MAESTRA: ${selectedLottery.displayName}  [$selectedStrategy]",
                                 color = GoldLight,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
@@ -233,13 +291,13 @@ fun TodayOracleScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Esferas doradas de la jugada maestra
+                    // Esferas doradas de la jugada activa
                     Row(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        for (ball in res.masterPlay) {
+                        for (ball in activePlay) {
                             val isAnchor = ball == res.intentionAnchorBall
                             LotteryBall(
                                 number = ball,
@@ -252,11 +310,11 @@ fun TodayOracleScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Métricas de Gauss
-                    val sum = res.masterPlay.sum()
-                    val evens = res.masterPlay.count { it % 2 == 0 }
-                    val odds = res.masterPlay.size - evens
-                    val decades = res.masterPlay.map { it / 10 }.distinct().size
+                    // Métricas de Gauss para la jugada activa
+                    val sum = activePlay.sum()
+                    val evens = activePlay.count { it % 2 == 0 }
+                    val odds = activePlay.size - evens
+                    val decades = activePlay.map { it / 10 }.distinct().size
 
                     Text(
                         text = "Filtros de equilibrio estadístico (Campana de Gauss):",
@@ -327,6 +385,123 @@ fun TodayOracleScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
+                        }
+                    }
+
+                    // ── WHEELING DEL REDUCED WHEEL 9 (ACORDEÓN) ─────────────
+                    if (res.wheelingCombinations.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(DarkSurfaceVariant)
+                                .border(1.dp, Color(0xFF263345), RoundedCornerShape(14.dp))
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showWheeling = !showWheeling }
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = GoldPrimary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "RUEDA DE 9 · COMBINACIONES ALTERNATIVAS",
+                                                color = GoldLight,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "Si varios números del pool salen en el sorteo, al menos una combinación contendrá varios aciertos.",
+                                                color = TextSecondary,
+                                                fontSize = 10.sp,
+                                                lineHeight = 13.sp
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = if (showWheeling) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = null,
+                                        tint = TextSecondary
+                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showWheeling,
+                                    enter = expandVertically() + fadeIn(),
+                                    exit = shrinkVertically() + fadeOut()
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        for (combo in res.wheelingCombinations) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(Color(0xFF1E2638).copy(alpha = 0.6f))
+                                                    .border(1.dp, GoldPrimary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        for (ball in combo) {
+                                                            val isAnchor = ball == res.intentionAnchorBall
+                                                            LotteryBall(
+                                                                number = ball,
+                                                                size = 36.dp,
+                                                                isAnchor = isAnchor,
+                                                                onClick = { viewModel.openBallSheet(ball) }
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = "Suma: ${combo.sum()} · Pares: ${combo.count { it % 2 == 0 }}",
+                                                            color = TextSecondary,
+                                                            fontSize = 9.sp
+                                                        )
+                                                        Text(
+                                                            text = "${combo.size} bolillas",
+                                                            color = GoldLight,
+                                                            fontSize = 9.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
